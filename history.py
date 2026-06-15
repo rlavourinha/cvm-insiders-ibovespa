@@ -114,8 +114,8 @@ def history_script(data, months) -> str:
   const box = document.getElementById('histsvg');
   const fmtBRL=(v,signed)=>{ if(v==null||isNaN(v))return '\u2014'; const a=Math.abs(v); let s;
     if(a>=1e9)s='R$ '+(v/1e9).toFixed(2)+' bi'; else if(a>=1e6)s='R$ '+(v/1e6).toFixed(1)+' mi';
-    else if(a>=1e3)s='R$ '+Math.round(v/1e3)+' mil'; else s='R$ '+Math.round(v);
-    return (signed&&v>0?'+':'')+s.replace('.', ','); };
+    else if(a>=1e3)s='R$ '+Math.round(v/1e3).toLocaleString('en-US')+' mil'; else s='R$ '+Math.round(v).toLocaleString('en-US');
+    return (signed&&v>0?'+':'')+s; };
   function makeSVG(d){
     const L=META.labels, n=L.length;
     const W=720,H=340,padL=46,padR=14,padT=16,padB=42;

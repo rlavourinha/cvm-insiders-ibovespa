@@ -21,6 +21,7 @@ import theme
 
 # ---------------------------------------------------------------------------
 def _brl(v, signed=False) -> str:
+    # formato internacional: vírgula no milhar, ponto no decimal (1,000.00)
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return "—"
     a = abs(v)
@@ -28,21 +29,20 @@ def _brl(v, signed=False) -> str:
     elif a >= 1e6: s = f"R$ {v/1e6:,.2f} mi"
     elif a >= 1e3: s = f"R$ {v/1e3:,.0f} mil"
     else: s = f"R$ {v:,.0f}"
-    s = s.replace(",", "·").replace(".", ",").replace("·", ".")
     return ("+" + s) if (signed and v > 0) else s
 
 
 def _qtd(v) -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return "—"
-    return f"{abs(v):,.0f}".replace(",", ".")
+    return f"{abs(v):,.0f}"
 
 
 def _preco(v) -> str:
-    # preço médio sempre com 2 casas decimais (ex.: R$ 10,69 / R$ 1.384,32)
+    # preço médio sempre com 2 casas decimais, formato 1,000.00 (ex.: R$ 1,384.32)
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return "—"
-    return f"R$ {v:,.2f}".replace(",", "·").replace(".", ",").replace("·", ".")
+    return f"R$ {v:,.2f}"
 
 
 def _org_label(o) -> str:
@@ -74,15 +74,24 @@ _FILTER_JS = """
   apply();
 })();</script>"""
 
+# rótulos curtos dos compradores para o gráfico (cabem no eixo)
+_ORG_ABBR = {
+    "Diretor": "Diretoria",
+    "Conselho de Administração": "Cons. Adm.",
+    "Conselho Fiscal": "Cons. Fiscal",
+    "Controlador": "Controlador",
+    "Órgão Estatutário": "Órgão Estat.",
+}
+
 
 # ---------------------------------------------------------------------------
-def _flow_svg(cd: dict) -> str:
+def _flow_svg(cd: dict, labelW: int = 50) -> str:
     labels = list(reversed(cd["labels"])); values = list(reversed(cd["values"]))
     n = len(labels)
     if n == 0:
         return '<div class="empty">Sem fluxo de insiders no delta.</div>'
     rowH, padT, padB, W = 22, 10, 24, 360
-    labelW, rightPad = 50, 10
+    rightPad = 10
     x0 = labelW; plotW = W - labelW - rightPad; cx = x0 + plotW / 2
     H = padT + padB + n * rowH
     maxabs = max((abs(v) for v in values), default=1) or 1
@@ -96,7 +105,7 @@ def _flow_svg(cd: dict) -> str:
         p.append(f'<rect x="{x:.1f}" y="{yc-bh/2:.1f}" width="{max(abs(bl),0.5):.1f}" height="{bh}" rx="2" fill="{color}"/>')
         p.append(f'<text class="svg-tkr" x="2" y="{yc+3.5:.1f}">{lb}</text>')
         vx = cx + bl + (4 if v >= 0 else -4); anch = "start" if v >= 0 else "end"
-        p.append(f'<text class="svg-val" x="{vx:.1f}" y="{yc+3.5:.1f}" text-anchor="{anch}">{("+" if v>0 else "")}{v:.1f}</text>')
+        p.append(f'<text class="svg-val" x="{vx:.1f}" y="{yc+3.5:.1f}" text-anchor="{anch}">{("+" if v>0 else "")}{v:,.1f}</text>')
     p.append(f'<text class="svg-axis" x="{x0}" y="{H-7}">vendas (−)</text>')
     p.append(f'<text class="svg-axis" x="{W-rightPad}" y="{H-7}" text-anchor="end">compras (+) · R$ mi</text>')
     p.append("</svg>")
@@ -118,8 +127,11 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     fluxo = float(isv.sum()) if len(isv) else 0.0
     n_eventos = len(vlmo) + len(ipe)
     by_tk = pd.Series(dtype=float)
+    by_org = pd.Series(dtype=float)
     if len(isv):
         by_tk = insider.assign(_sv=isv.values).groupby("ticker")["_sv"].sum().sort_values()
+        by_org = insider.assign(_sv=isv.values,
+                                _org=insider["orgao"].map(_org_label).values).groupby("_org")["_sv"].sum()
     n_compra = int((by_tk > 0).sum())
     n_recompra = len(ipe) + len(tesour)
 
@@ -166,6 +178,11 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     chart_data = {"labels": list(chart.index), "values": [round(v/1e6, 3) for v in chart.values]}
     flow_svg = _flow_svg(chart_data)
 
+    org_chart = by_org.reindex(by_org.abs().sort_values().index) if len(by_org) else by_org
+    org_data = {"labels": [_ORG_ABBR.get(k, k) for k in org_chart.index],
+                "values": [round(v/1e6, 3) for v in org_chart.values]}
+    org_svg = _flow_svg(org_data, labelW=92)
+
     body = f"""
   <section class="kpis c4">
     <div class="kpi"><div class="lbl">Eventos no delta</div><div class="val">{n_eventos}</div><div class="foot">{len(insider)} de administradores</div></div>
@@ -185,6 +202,8 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     <div class="right">
       <section class="card"><div class="card-h"><h2>Fluxo líquido por emissor</h2><span class="meta">R$ mi</span></div>
         <div class="chart-box">{flow_svg}</div></section>
+      <section class="card"><div class="card-h"><h2>Fluxo por tipo de comprador</h2><span class="meta">R$ mi</span></div>
+        <div class="chart-box">{org_svg}</div></section>
       <section class="card"><div class="card-h"><h2>Tesouraria &amp; recompra</h2><span class="meta">VLMO + IPE</span></div>
         <div class="tes-list">{''.join(tes)}</div></section>
     </div>
