@@ -39,10 +39,19 @@ def _find(cols, *patterns) -> str | None:
 
 
 def _to_num(s: pd.Series) -> pd.Series:
-    return pd.to_numeric(
-        s.astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
-        errors="coerce",
-    )
+    # A CVM mistura convenções: o VLMO atual usa PONTO como decimal
+    # (ex.: "10.6914225726", "1597410097.34") e quantidade inteira sem milhar,
+    # mas reapresentações antigas usam vírgula decimal e ponto de milhar.
+    # Heurística: trata como BR (ponto=milhar) só quando há vírgula OU mais de
+    # um ponto; caso contrário, o ponto já é o separador decimal.
+    x = s.astype(str).str.strip()
+    br = x.str.contains(",", regex=False) | (x.str.count(r"\.") > 1)
+    x = x.where(~br, x.str.replace(".", "", regex=False).str.replace(",", ".", regex=False))
+    return pd.to_numeric(x, errors="coerce")
+
+
+def _only_digits(s) -> str:
+    return re.sub(r"\D", "", str(s))
 
 
 def _classify_orgao(orgao: str) -> str | None:
@@ -77,7 +86,7 @@ def _pick_movement_table(zf: zipfile.ZipFile) -> str | None:
     return best if best_score >= 3 else best  # devolve o melhor de qualquer forma
 
 
-def parse(zip_path, cd_cvm_keep: set[int]) -> pd.DataFrame:
+def parse(zip_path, cd_cvm_keep: set[int], cnpj_to_cd: dict[str, int] | None = None) -> pd.DataFrame:
     with zipfile.ZipFile(zip_path) as zf:
         member = _pick_movement_table(zf)
         if member is None:
@@ -93,23 +102,36 @@ def parse(zip_path, cd_cvm_keep: set[int]) -> pd.DataFrame:
     c_data = h.get("data_ref") or _find(cols, r"DATA REFER|REFERENCIA|COMPETEN")
     c_versao = h.get("versao") or _find(cols, r"VERS")
     c_orgao = h.get("orgao") or _find(cols, r"TIPO CARGO|CARGO|ORGAO|CATEGORIA")
-    c_mov = h.get("tipo_mov") or _find(cols, r"TIPO MOVIMENTA|TIPO OPERA|INTENCAO|NATUREZA")
+    c_mov = h.get("tipo_mov") or _find(cols, r"TIPO MOVIMENTA|INTENCAO|NATUREZA")
+    c_oper = h.get("operacao") or _find(cols, r"TIPO OPERA|OPERACAO")
     c_esp = h.get("especie") or _find(cols, r"ESP(E|É)CIE|CARACTER|TIPO ATIVO|VALOR MOBILI")
     c_qtd = h.get("quantidade") or _find(cols, r"QUANTIDADE")
     c_prc = h.get("preco") or _find(cols, r"PRE(Ç|C)O")
-    c_vol = h.get("volume") or _find(cols, r"VOLUME|VALOR")
+    c_vol = h.get("volume") or _find(cols, r"VOLUME")
 
-    if not (c_cvm and c_qtd):
+    # A tabela de movimentação do VLMO identifica a companhia por CNPJ (sem
+    # Codigo_CVM). Usamos cd_cvm da coluna quando existe; senão resolvemos pelo
+    # CNPJ via mapa do resolver (cad_cia_aberta traz os dois).
+    if c_cvm:
+        cd_cvm = pd.to_numeric(df[c_cvm], errors="coerce")
+    elif c_cnpj and cnpj_to_cd:
+        cd_cvm = df[c_cnpj].map(lambda x: cnpj_to_cd.get(_only_digits(x)))
+        cd_cvm = pd.to_numeric(cd_cvm, errors="coerce")
+    else:
+        cd_cvm = pd.Series(pd.NA, index=df.index)
+
+    if not (c_qtd and (c_cvm or (c_cnpj and cnpj_to_cd))):
         raise RuntimeError(f"VLMO: schema não reconhecido em '{member}'. Cabeçalho: {cols}\n"
                            f"Defina config.COLUMN_HINTS manualmente.")
 
     out = pd.DataFrame({
         "data_ref": df[c_data] if c_data else pd.NA,
-        "cd_cvm": pd.to_numeric(df[c_cvm], errors="coerce"),
+        "cd_cvm": cd_cvm,
         "cnpj": df[c_cnpj] if c_cnpj else pd.NA,
         "nome": df[c_nome] if c_nome else pd.NA,
         "orgao": df[c_orgao] if c_orgao else pd.NA,
         "tipo_mov": df[c_mov] if c_mov else pd.NA,
+        "operacao": df[c_oper] if c_oper else pd.NA,
         "especie": df[c_esp] if c_esp else pd.NA,
         "quantidade": _to_num(df[c_qtd]),
         "preco": _to_num(df[c_prc]) if c_prc else pd.NA,
@@ -118,18 +140,28 @@ def parse(zip_path, cd_cvm_keep: set[int]) -> pd.DataFrame:
     })
     out["fonte"] = "VLMO"
 
+    # "Saldo Inicial/Final" são marcadores de posição, não negociações: descarta.
+    mov_norm = out["tipo_mov"].map(lambda x: _norm(x) if pd.notna(x) else "")
+    out = out[~mov_norm.str.contains("SALDO")]
+
     # filtros: watchlist, classe de órgão (insider/tesouraria), movimento real
     out = out[out["cd_cvm"].isin(cd_cvm_keep)]
     out["classe"] = out["orgao"].map(_classify_orgao)
     out = out[out["classe"].notna()]
     out = out[out["quantidade"].fillna(0) != 0]
 
-    # direção a partir do tipo_mov (compra/venda) com fallback no sinal da qtde
+    # direção: Tipo_Operacao (Crédito/Débito) é o sinal autoritativo; cai para o
+    # tipo_mov e, por fim, para o sinal da quantidade.
     def _dir(row):
-        m = _norm(row["tipo_mov"])
-        if re.search(r"COMPRA|AQUISI|SUBSCRI|EXERC", m):
+        op = _norm(row.get("operacao") if pd.notna(row.get("operacao")) else "")
+        if "CREDITO" in op:
             return "compra"
-        if re.search(r"VENDA|ALIENA|BAIXA|DOA(Ç|C)", m):
+        if "DEBITO" in op:
+            return "venda"
+        m = _norm(row["tipo_mov"])
+        if re.search(r"COMPRA|AQUISI|SUBSCRI|EXERC|ENTRADA", m):
+            return "compra"
+        if re.search(r"VENDA|ALIENA|BAIXA|DOA(Ç|C)|SA(Í|I)DA|DESLIG", m):
             return "venda"
         return "compra" if (row["quantidade"] or 0) > 0 else "venda"
 

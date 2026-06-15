@@ -11,6 +11,7 @@ o cache ou passar force=True.
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 
 import pandas as pd
@@ -85,6 +86,17 @@ def cd_to_tickers(mapping: dict[str, dict]) -> dict[int, list[str]]:
     out: dict[int, list[str]] = {}
     for tk, v in mapping.items():
         out.setdefault(v["cd_cvm"], []).append(tk)
+    return out
+
+
+def cnpj_to_cd(mapping: dict[str, dict]) -> dict[str, int]:
+    """{cnpj_so_digitos: cd_cvm} — usado para resolver cd_cvm na tabela de
+    movimentação do VLMO, que identifica a companhia só por CNPJ."""
+    out: dict[str, int] = {}
+    for v in mapping.values():
+        cnpj = re.sub(r"\D", "", v.get("cnpj") or "")
+        if cnpj and v.get("cd_cvm"):
+            out[cnpj] = v["cd_cvm"]
     return out
 
 

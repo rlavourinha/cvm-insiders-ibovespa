@@ -12,8 +12,10 @@ tipo, assunto, link, versao, fonte.
 
 from __future__ import annotations
 
+import io
 import re
 import unicodedata
+import zipfile
 
 import pandas as pd
 
@@ -23,6 +25,19 @@ import config
 def _norm(s) -> str:
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode()
     return s.upper().strip()
+
+
+def _read_csv(path) -> pd.DataFrame:
+    """Lê o IPE seja como .zip (membro .csv) ou .csv solto — o formato do portal
+    da CVM mudou de csv para zip; aceitamos os dois."""
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as zf:
+            member = next((n for n in zf.namelist() if n.lower().endswith(".csv")), None)
+            if member is None:
+                return pd.DataFrame()
+            raw = zf.read(member)
+        return pd.read_csv(io.BytesIO(raw), sep=config.SEP, encoding=config.ENCODING, dtype=str)
+    return pd.read_csv(path, sep=config.SEP, encoding=config.ENCODING, dtype=str)
 
 
 def _find(cols, *patterns):
@@ -35,7 +50,9 @@ def _find(cols, *patterns):
 
 
 def parse(csv_path, cd_cvm_keep: set[int]) -> pd.DataFrame:
-    df = pd.read_csv(csv_path, sep=config.SEP, encoding=config.ENCODING, dtype=str)
+    df = _read_csv(csv_path)
+    if df.empty:
+        return df
     cols = list(df.columns)
 
     c_cvm = _find(cols, r"C(O|Ó)DIGO CVM|CD CVM")

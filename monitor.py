@@ -50,14 +50,15 @@ def collect():
     from fetch import download
     import parse_vlmo, parse_ipe
     mp = resolver.resolve(); keep = resolver.cd_cvm_set(mp)
+    cnpj_map = resolver.cnpj_to_cd(mp)
     cd2tk = resolver.cd_to_tickers(mp)
     tk_of = lambda cd: (cd2tk.get(int(cd), ["—"])[0] if pd.notna(cd) else "—")
     vlmo_all, ipe_all = [], []
     for ano in config.ANOS:
         vz = download(config.VLMO_URL.format(ano=ano), config.DATA_DIR / f"vlmo_{ano}.zip")
-        try: vlmo_all.append(parse_vlmo.parse(vz, keep))
+        try: vlmo_all.append(parse_vlmo.parse(vz, keep, cnpj_map))
         except zipfile.BadZipFile: print(f"[vlmo] {ano}: indisponível")
-        ic = download(config.IPE_URL.format(ano=ano), config.DATA_DIR / f"ipe_{ano}.csv")
+        ic = download(config.IPE_URL.format(ano=ano), config.DATA_DIR / f"ipe_{ano}.zip")
         ipe_all.append(parse_ipe.parse(ic, keep))
     vlmo = pd.concat(vlmo_all, ignore_index=True) if vlmo_all else pd.DataFrame()
     ipe = pd.concat(ipe_all, ignore_index=True) if ipe_all else pd.DataFrame()

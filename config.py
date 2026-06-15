@@ -23,7 +23,7 @@ for _d in (DATA_DIR, STATE_DIR, OUTPUT_DIR):
 # Fontes (Portal de Dados Abertos da CVM)
 # ---------------------------------------------------------------------------
 VLMO_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/vlmo_cia_aberta_{ano}.zip"
-IPE_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_{ano}.csv"
+IPE_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_{ano}.zip"
 CAD_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
 
 ENCODING = "latin-1"
@@ -72,7 +72,7 @@ IBOV = {
     "BBDC3": "BRADESCO",         "BBDC4": "BRADESCO",       "BRAP4": "BRADESPAR",
     "BBAS3": "BANCO DO BRASIL",  "BRKM5": "BRASKEM",        "BRAV3": "BRAVA",
     "BPAC11": "BTG PACTUAL",     "CXSE3": "CAIXA SEGURI",   "CEAB3": "C&A",
-    "CMIG4": "CEMIG",            "COGN3": "COGNA",          "CSMG3": "COPASA",
+    "CMIG4": "CEMIG",            "COGN3": "COGNA",          "CSMG3": "SANEAMENTO DE MINAS",
     "CPLE3": "COPEL",            "CSAN3": "COSAN",          "CPFE3": "CPFL",
     "CMIN3": "CSN MINERA",       "CURY3": "CURY",           "CYRE3": "CYRELA",
     "DIRR3": "DIRECIONAL",       "EMBJ3": "EMBRAER",        "ENGI11": "ENERGISA",
@@ -85,10 +85,10 @@ IBOV = {
     "BEEF3": "MINERVA",          "MOTV3": "MOTIVA",         "MRVE3": "MRV",
     "MULT3": "MULTIPLAN",        "NATU3": "NATURA",         "PETR3": "PETROLEO BRASILEIRO",
     "PETR4": "PETROLEO BRASILEIRO", "RECV3": "PETRORECON",  "PSSA3": "PORTO SEGURO",
-    "PRIO3": "PETRO RIO",        "RADL3": "RAIA DROGASIL",  "RDOR3": "REDE D",
-    "RAIL3": "RUMO",             "SBSP3": "SABESP",         "SANB11": "SANTANDER",
-    "CSNA3": "SIDERURGICA NACIONAL", "SLCE3": "SLC AGRICOLA", "SMFT3": "SMART FIT",
-    "SUZB3": "SUZANO",           "TAEE11": "TAESA",         "VIVT3": "TELEFONICA",
+    "PRIO3": "PRIO S",           "RADL3": "RAIA DROGASIL",  "RDOR3": "REDE D",
+    "RAIL3": "RUMO",             "SBSP3": "SANEAMENTO BASICO", "SANB11": "SANTANDER",
+    "CSNA3": "SIDERURGICA NACIONAL", "SLCE3": "SLC AGRICOLA", "SMFT3": "SMARTFIT",
+    "SUZB3": "SUZANO",           "TAEE11": "TRANSMISSORA ALIANCA", "VIVT3": "TELEFONICA",
     "TIMS3": "TIM ",             "TOTS3": "TOTVS",          "UGPA3": "ULTRAPAR",
     "USIM5": "USIMINAS",         "VALE3": "VALE",           "VAMO3": "VAMOS",
     "VBBR3": "VIBRA",            "VIVA3": "VIVARA",          "WEGE3": "WEG ",
