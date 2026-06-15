@@ -1,0 +1,18 @@
+[project]
+name = "cvm-insider-monitor"
+version = "1.0.0"
+description = "Monitor de movimentações de insiders e tesouraria das empresas do Ibovespa (CVM)"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "pyarrow>=14.0",   # ledger Parquet (cai para CSV se ausente)
+]
+
+[project.optional-dependencies]
+dev = ["playwright>=1.40"]   # render headless para validar os HTMLs
+
+[tool.setuptools]
+py-modules = [
+    "config", "fetch", "resolver", "parse_vlmo", "parse_ipe",
+    "theme", "report", "history", "dashboard", "monitor",
+]

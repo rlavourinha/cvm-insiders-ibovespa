@@ -1,0 +1,438 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insiders & Tesouraria · Ibovespa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,620&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1117; --panel:#121A22; --panel2:#18232E; --line:#243240;
+  --paper:#E7E3D8; --muted:#8596A2; --faint:#5C6B76;
+  --buy:#4FB286; --sell:#D86A4A; --gold:#D4A53A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--paper);
+  font-family:'Inter',system-ui,sans-serif;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:38px 26px 60px}
+a{color:var(--gold);text-decoration:none;border-bottom:1px solid transparent}
+a:hover{border-bottom-color:var(--gold)}
+
+.kicker{font:600 11px/1 'Inter',sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+h1{font-family:'Fraunces',serif;font-weight:560;font-size:clamp(30px,5vw,50px);line-height:1.02;letter-spacing:-.01em;margin:0 0 12px}
+h1 em{font-style:italic;color:var(--gold)}
+.sub{color:var(--muted);font-size:14px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.sub b{color:var(--paper);font-weight:500}
+.mode{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;padding:5px 9px;border:1px solid var(--line);border-radius:3px;color:var(--muted)}
+.mode.preview{color:var(--gold);border-color:var(--gold)}
+
+/* abas */
+.tabs{display:flex;gap:4px;margin:26px 0 24px;border-bottom:1px solid var(--line)}
+.tab{appearance:none;background:none;border:0;cursor:pointer;
+  font:600 13px 'Inter',sans-serif;color:var(--muted);padding:13px 18px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+.tab:hover{color:var(--paper)}
+.tab.active{color:var(--paper);border-bottom-color:var(--gold)}
+.tab .n{font:600 11px 'IBM Plex Mono',monospace;color:var(--faint);margin-left:7px}
+.panel{display:none}
+.panel.active{display:block}
+
+/* kpis */
+.kpis{display:grid;gap:0;margin:0 0 24px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.kpis.c4{grid-template-columns:repeat(4,1fr)} .kpis.c5{grid-template-columns:repeat(5,1fr)}
+.kpi{padding:18px 20px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:0}
+.kpi .lbl{font:600 10px/1 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+.kpi .val{font:600 22px 'IBM Plex Mono',monospace}
+.kpi .val.serif{font-family:'Fraunces',serif;font-weight:560;font-size:26px}
+.kpi .val.pos{color:var(--buy)} .kpi .val.neg{color:var(--sell)} .kpi .val.gold{color:var(--gold)}
+.kpi .foot{font-size:12px;color:var(--muted);margin-top:7px}
+
+/* cards */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;padding:16px 20px;border-bottom:1px solid var(--line)}
+.card-h h2{font-family:'Fraunces',serif;font-weight:560;font-size:18px;margin:0}
+.card-h .meta{font:500 11px 'IBM Plex Mono',monospace;color:var(--faint);letter-spacing:.04em}
+
+/* grid digest */
+.grid{display:grid;grid-template-columns:1.55fr 1fr;gap:22px;align-items:start}
+.right{display:flex;flex-direction:column;gap:22px}
+.chart-box{padding:14px 16px 18px}
+.chart-box svg,.hist-chart svg{width:100%;height:auto;display:block}
+.svg-grid{stroke:rgba(36,50,64,.7);stroke-width:1}
+.svg-zero{stroke:var(--faint);stroke-width:1}
+.svg-lbl{fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px}
+.svg-tkr{fill:var(--paper);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600}
+.svg-val{fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:10px}
+.svg-axis{fill:var(--faint);font-family:'IBM Plex Mono',monospace;font-size:10px}
+
+/* fita */
+.tape{padding:6px 0 8px;max-height:560px;overflow-y:auto}
+.tape-head,.tape-row{display:grid;grid-template-columns:78px 64px 1fr 70px 78px 84px 96px;gap:10px;align-items:center;padding:9px 20px;font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+.tape-head{color:var(--faint);font-size:10px;letter-spacing:.08em;text-transform:uppercase;position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding-top:12px;padding-bottom:12px}
+.tape-row{border-left:2px solid transparent;border-bottom:1px solid rgba(36,50,64,.5);transition:background .12s}
+.tape-row:hover{background:var(--panel2)}
+.tape-row.compra{border-left-color:var(--buy)} .tape-row.venda{border-left-color:var(--sell)}
+.t-tkr{font-weight:600;color:var(--paper)}
+.t-org{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-num{text-align:right;color:var(--paper)} .t-num.strong{font-weight:600}
+.t-chip{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-align:center;padding:3px 0;border-radius:3px}
+.t-chip.compra{color:var(--buy);background:rgba(79,178,134,.12)}
+.t-chip.venda{color:var(--sell);background:rgba(216,106,74,.12)}
+
+/* tesouraria */
+.tes-list{padding:8px 0}
+.tes-item{padding:13px 20px;border-bottom:1px solid rgba(36,50,64,.5)} .tes-item:last-child{border-bottom:0}
+.tes-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.tes-head .tkr{font:600 13px 'IBM Plex Mono',monospace;color:var(--paper)}
+.tag{font:600 9.5px 'Inter',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:3px 7px;border-radius:3px}
+.tag.gold{color:var(--gold);border-color:rgba(212,165,58,.4)}
+.tes-body{font-size:13px;color:var(--paper)}
+.tes-meta{font:500 11px 'IBM Plex Mono',monospace;color:var(--faint);margin-top:5px}
+.empty{padding:26px 20px;color:var(--faint);font-size:13px;text-align:center}
+
+/* método */
+.method{margin-top:30px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:22px 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.method h3{font:600 10.5px 'Inter',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:var(--gold);margin:0 0 8px}
+.method p{margin:0;font-size:13px;color:var(--muted)} .method b{color:var(--paper);font-weight:500}
+
+/* histórico: seletor + legenda */
+.picker{display:flex;align-items:center;gap:14px;margin:0 0 22px;flex-wrap:wrap}
+.picker label{font:600 10.5px 'Inter',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.sel{position:relative}
+select{appearance:none;background:var(--panel);color:var(--paper);border:1px solid var(--line);border-radius:6px;padding:12px 42px 12px 16px;font:600 18px 'IBM Plex Mono',monospace;letter-spacing:.04em;cursor:pointer;min-width:160px}
+select:focus{outline:2px solid var(--gold);outline-offset:1px}
+.sel::after{content:"▾";position:absolute;right:15px;top:50%;transform:translateY(-50%);color:var(--gold);pointer-events:none;font-size:14px}
+.hist-chart{padding:14px 16px 18px}
+.legend{display:flex;gap:18px;padding:0 20px 16px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend .ln{width:16px;height:2px;border-radius:0}
+
+footer{margin-top:26px;color:var(--faint);font-size:11.5px;font-family:'IBM Plex Mono',monospace;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+@media (max-width:880px){
+  .kpis.c4,.kpis.c5{grid-template-columns:repeat(2,1fr)}
+  .kpi:nth-child(2){border-right:0}
+  .grid{grid-template-columns:1fr} .method{grid-template-columns:1fr}
+  .tape-head,.tape-row{grid-template-columns:64px 56px 1fr 62px 70px}
+  .tape-head span:nth-child(6),.tape-head span:nth-child(7),.tape-row .t-num:nth-child(6){display:none}
+}
+</style></head>
+<body><div class="wrap">
+  <header>
+    <div class="kicker">Petros · Mesa de Renda Variável · Vigilância Regulatória</div>
+    <h1>Insiders &amp; <em>Tesouraria</em> · Ibovespa</h1>
+    <div class="sub"><span>Universo <b>Ibovespa (76 emissores)</b></span>·
+      <span>Competência <b>mai/2026</b></span>·
+      <span>Gerado em <b>15/06/2026 19:12</b></span><span class="mode preview">prévia · dados de exemplo</span></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-t="fita">Fita do delta<span class="n">30</span></button>
+    <button class="tab" data-t="hist">Histórico 12 meses<span class="n">79</span></button>
+  </nav>
+
+  <section class="panel active" id="fita">
+  <section class="kpis c4">
+    <div class="kpi"><div class="lbl">Eventos no delta</div><div class="val">30</div><div class="foot">26 de administradores</div></div>
+    <div class="kpi"><div class="lbl">Fluxo líquido de insiders</div><div class="val pos">+R$ 184,59 mi</div><div class="foot">compras − vendas (R$)</div></div>
+    <div class="kpi"><div class="lbl">Emissores com compra líquida</div><div class="val">9<span style="color:var(--faint);font-size:15px"> / —</span></div><div class="foot">insider net buyers</div></div>
+    <div class="kpi"><div class="lbl">Sinais de recompra</div><div class="val">4</div><div class="foot">VLMO tesouraria + IPE</div></div>
+  </section>
+  <div class="grid">
+    <section class="card">
+      <div class="card-h"><h2>Fita de movimentações</h2><span class="meta">art. 11 · Res. CVM 44</span></div>
+      <div class="tape-head"><span>Comp.</span><span>Papel</span><span>Órgão</span><span>Operação</span>
+        <span style="text-align:right">Qtde</span><span style="text-align:right">Preço méd.</span><span style="text-align:right">Valor</span></div>
+      <div class="tape"><div class="tape-row compra">
+          <span class="t-date">2026-05-23</span>
+          <span class="t-tkr">CPLE3</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">878.939</span>
+          <span class="t-num">R$ 74</span>
+          <span class="t-num strong">R$ 65,12 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-04</span>
+          <span class="t-tkr">VALE3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">836.004</span>
+          <span class="t-num">R$ 52</span>
+          <span class="t-num strong">R$ 43,15 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-06</span>
+          <span class="t-tkr">BBAS3</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">850.309</span>
+          <span class="t-num">R$ 45</span>
+          <span class="t-num strong">R$ 38,10 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-18</span>
+          <span class="t-tkr">VALE3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">774.905</span>
+          <span class="t-num">R$ 47</span>
+          <span class="t-num strong">R$ 36,46 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-09</span>
+          <span class="t-tkr">PETR4</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">917.420</span>
+          <span class="t-num">R$ 36</span>
+          <span class="t-num strong">R$ 33,05 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-09</span>
+          <span class="t-tkr">SBSP3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">958.396</span>
+          <span class="t-num">R$ 32</span>
+          <span class="t-num strong">R$ 30,89 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-04</span>
+          <span class="t-tkr">CSMG3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">949.273</span>
+          <span class="t-num">R$ 27</span>
+          <span class="t-num strong">R$ 25,91 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-14</span>
+          <span class="t-tkr">SUZB3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">942.576</span>
+          <span class="t-num">R$ 27</span>
+          <span class="t-num strong">R$ 25,52 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-13</span>
+          <span class="t-tkr">RDOR3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">665.976</span>
+          <span class="t-num">R$ 31</span>
+          <span class="t-num strong">R$ 20,51 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-17</span>
+          <span class="t-tkr">RENT3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">527.285</span>
+          <span class="t-num">R$ 35</span>
+          <span class="t-num strong">R$ 18,28 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-19</span>
+          <span class="t-tkr">PRIO3</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">439.926</span>
+          <span class="t-num">R$ 41</span>
+          <span class="t-num strong">R$ 18,15 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-11</span>
+          <span class="t-tkr">WEGE3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">1.141.900</span>
+          <span class="t-num">R$ 16</span>
+          <span class="t-num strong">R$ 18,14 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-12</span>
+          <span class="t-tkr">CSMG3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">884.867</span>
+          <span class="t-num">R$ 19</span>
+          <span class="t-num strong">R$ 16,86 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-04</span>
+          <span class="t-tkr">EMBJ3</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">964.731</span>
+          <span class="t-num">R$ 13</span>
+          <span class="t-num strong">R$ 12,17 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-08</span>
+          <span class="t-tkr">SUZB3</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">253.567</span>
+          <span class="t-num">R$ 41</span>
+          <span class="t-num strong">R$ 10,42 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-04</span>
+          <span class="t-tkr">EQTL3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">212.326</span>
+          <span class="t-num">R$ 45</span>
+          <span class="t-num strong">R$ 9,49 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-05</span>
+          <span class="t-tkr">ITUB4</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">131.963</span>
+          <span class="t-num">R$ 63</span>
+          <span class="t-num strong">R$ 8,37 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-11</span>
+          <span class="t-tkr">SBSP3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">519.907</span>
+          <span class="t-num">R$ 13</span>
+          <span class="t-num strong">R$ 7,01 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-04</span>
+          <span class="t-tkr">RDOR3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">90.223</span>
+          <span class="t-num">R$ 72</span>
+          <span class="t-num strong">R$ 6,54 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-14</span>
+          <span class="t-tkr">ITUB4</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">137.734</span>
+          <span class="t-num">R$ 47</span>
+          <span class="t-num strong">R$ 6,43 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-20</span>
+          <span class="t-tkr">WEGE3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">387.010</span>
+          <span class="t-num">R$ 15</span>
+          <span class="t-num strong">R$ 5,77 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-06</span>
+          <span class="t-tkr">ITUB4</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">105.690</span>
+          <span class="t-num">R$ 45</span>
+          <span class="t-num strong">R$ 4,79 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-06</span>
+          <span class="t-tkr">CPLE3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">324.504</span>
+          <span class="t-num">R$ 14</span>
+          <span class="t-num strong">R$ 4,40 mi</span></div><div class="tape-row venda">
+          <span class="t-date">2026-05-28</span>
+          <span class="t-tkr">CPLE3</span>
+          <span class="t-org">Controlador</span>
+          <span class="t-chip venda">VENDA</span>
+          <span class="t-num">497.341</span>
+          <span class="t-num">R$ 9</span>
+          <span class="t-num strong">R$ 4,38 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-13</span>
+          <span class="t-tkr">SUZB3</span>
+          <span class="t-org">Diretoria</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">55.317</span>
+          <span class="t-num">R$ 71</span>
+          <span class="t-num strong">R$ 3,93 mi</span></div><div class="tape-row compra">
+          <span class="t-date">2026-05-24</span>
+          <span class="t-tkr">EMBJ3</span>
+          <span class="t-org">Conselho de Administraç…</span>
+          <span class="t-chip compra">COMPRA</span>
+          <span class="t-num">144.314</span>
+          <span class="t-num">R$ 12</span>
+          <span class="t-num strong">R$ 1,74 mi</span></div></div>
+    </section>
+    <div class="right">
+      <section class="card"><div class="card-h"><h2>Fluxo líquido por emissor</h2><span class="meta">R$ mi</span></div>
+        <div class="chart-box"><svg viewBox="0 0 360 342" role="img" aria-label="Fluxo líquido por emissor"><line class="svg-zero" x1="200.0" y1="8" x2="200.0" y2="320"/><rect x="200.0" y="14.5" width="122.0" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="24.5">VALE3</text><text class="svg-val" x="326.0" y="24.5" text-anchor="start">+79.6</text><rect x="200.0" y="36.5" width="99.8" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="46.5">CPLE3</text><text class="svg-val" x="303.8" y="46.5" text-anchor="start">+65.1</text><rect x="200.0" y="58.5" width="58.4" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="68.5">BBAS3</text><text class="svg-val" x="262.4" y="68.5" text-anchor="start">+38.1</text><rect x="200.0" y="80.5" width="50.6" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="90.5">PETR4</text><text class="svg-val" x="254.6" y="90.5" text-anchor="start">+33.0</text><rect x="151.0" y="102.5" width="49.0" height="13" rx="2" fill="var(--sell)"/><text class="svg-tkr" x="2" y="112.5">SUZB3</text><text class="svg-val" x="147.0" y="112.5" text-anchor="end">-32.0</text><rect x="200.0" y="124.5" width="36.6" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="134.5">SBSP3</text><text class="svg-val" x="240.6" y="134.5" text-anchor="start">+23.9</text><rect x="172.0" y="146.5" width="28.0" height="13" rx="2" fill="var(--sell)"/><text class="svg-tkr" x="2" y="156.5">RENT3</text><text class="svg-val" x="168.0" y="156.5" text-anchor="end">-18.3</text><rect x="172.2" y="168.5" width="27.8" height="13" rx="2" fill="var(--sell)"/><text class="svg-tkr" x="2" y="178.5">PRIO3</text><text class="svg-val" x="168.2" y="178.5" text-anchor="end">-18.2</text><rect x="178.6" y="190.5" width="21.4" height="13" rx="2" fill="var(--sell)"/><text class="svg-tkr" x="2" y="200.5">RDOR3</text><text class="svg-val" x="174.6" y="200.5" text-anchor="end">-14.0</text><rect x="200.0" y="212.5" width="19.0" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="222.5">WEGE3</text><text class="svg-val" x="223.0" y="222.5" text-anchor="start">+12.4</text><rect x="184.0" y="234.5" width="16.0" height="13" rx="2" fill="var(--sell)"/><text class="svg-tkr" x="2" y="244.5">EMBJ3</text><text class="svg-val" x="180.0" y="244.5" text-anchor="end">-10.4</text><rect x="200.0" y="256.5" width="14.5" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="266.5">EQTL3</text><text class="svg-val" x="218.5" y="266.5" text-anchor="start">+9.5</text><rect x="200.0" y="278.5" width="13.9" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="288.5">CSMG3</text><text class="svg-val" x="217.9" y="288.5" text-anchor="start">+9.0</text><rect x="200.0" y="300.5" width="10.3" height="13" rx="2" fill="var(--buy)"/><text class="svg-tkr" x="2" y="310.5">ITUB4</text><text class="svg-val" x="214.3" y="310.5" text-anchor="start">+6.7</text><text class="svg-axis" x="50" y="335">vendas (−)</text><text class="svg-axis" x="350" y="335" text-anchor="end">compras (+) · R$ mi</text></svg></div></section>
+      <section class="card"><div class="card-h"><h2>Tesouraria &amp; recompra</h2><span class="meta">VLMO + IPE</span></div>
+        <div class="tes-list"><div class="tes-item">
+          <div class="tes-head"><span class="tkr">WEGE3</span><span class="tag">VLMO · tesouraria</span></div>
+          <div class="tes-body">compra · 582.400 ações · R$ 17,77 mi</div></div><div class="tes-item">
+          <div class="tes-head"><span class="tkr">ITUB4</span><span class="tag">VLMO · tesouraria</span></div>
+          <div class="tes-body">compra · 208.584 ações · R$ 5,39 mi</div></div><div class="tes-item">
+          <div class="tes-head"><span class="tkr">PETR4</span><span class="tag gold">IPE · recompra</span></div>
+          <div class="tes-body">Aprovação de programa de recompra de até 80 mi de ações</div>
+          <div class="tes-meta">2026-05-22 <a href="https://www.rad.cvm.gov.br/" target="_blank" rel="noopener">abrir documento ↗</a></div></div><div class="tes-item">
+          <div class="tes-head"><span class="tkr">RADL3</span><span class="tag gold">IPE · recompra</span></div>
+          <div class="tes-body">Cancelamento de ações em tesouraria</div>
+          <div class="tes-meta">2026-05-19 <a href="https://www.rad.cvm.gov.br/" target="_blank" rel="noopener">abrir documento ↗</a></div></div></div></section>
+    </div>
+  </div>
+  <section class="method">
+    <div><h3>O que monitora</h3><p>Compras e vendas de <b>Diretoria, Conselho de Administração e controladores</b>, e movimentações de <b>ações em tesouraria</b>, restrito ao Ibovespa (76 emissores).</p></div>
+    <div><h3>Fontes</h3><p><b>VLMO</b> (art. 11 Res. CVM 44) para insiders e tesouraria; <b>IPE</b> para recompra — este entrega o <b>link do documento</b>, não a quantidade.</p></div>
+    <div><h3>Cadência &amp; chave</h3><p>Informe <b>mensal</b> (entrega até dia 10); não é intraday. Join por <b>Codigo_CVM</b>. O delta são os registros novos desde a última execução.</p></div>
+  </section></section>
+  <section class="panel" id="hist">
+  <div class="picker">
+    <label for="emp">Empresa</label>
+    <div class="sel"><select id="emp"><option value="ABEV3">ABEV3</option><option value="ALOS3">ALOS3</option><option value="ASAI3">ASAI3</option><option value="AURE3">AURE3</option><option value="AXIA3">AXIA3</option><option value="AXIA6">AXIA6</option><option value="AZZA3">AZZA3</option><option value="B3SA3">B3SA3</option><option value="BBAS3">BBAS3</option><option value="BBDC3">BBDC3</option><option value="BBDC4">BBDC4</option><option value="BBSE3">BBSE3</option><option value="BEEF3">BEEF3</option><option value="BPAC11">BPAC11</option><option value="BRAP4">BRAP4</option><option value="BRAV3">BRAV3</option><option value="BRKM5">BRKM5</option><option value="CEAB3">CEAB3</option><option value="CMIG4">CMIG4</option><option value="CMIN3">CMIN3</option><option value="COGN3">COGN3</option><option value="CPFE3">CPFE3</option><option value="CPLE3">CPLE3</option><option value="CSAN3">CSAN3</option><option value="CSMG3">CSMG3</option><option value="CSNA3">CSNA3</option><option value="CURY3">CURY3</option><option value="CXSE3">CXSE3</option><option value="CYRE3">CYRE3</option><option value="DIRR3">DIRR3</option><option value="EGIE3">EGIE3</option><option value="EMBJ3">EMBJ3</option><option value="ENEV3">ENEV3</option><option value="ENGI11">ENGI11</option><option value="EQTL3">EQTL3</option><option value="FLRY3">FLRY3</option><option value="GGBR4">GGBR4</option><option value="GOAU4">GOAU4</option><option value="HAPV3">HAPV3</option><option value="HYPE3">HYPE3</option><option value="IGTI11">IGTI11</option><option value="ISAE4">ISAE4</option><option value="ITSA4">ITSA4</option><option value="ITUB4">ITUB4</option><option value="KLBN11">KLBN11</option><option value="LREN3">LREN3</option><option value="MBRF3">MBRF3</option><option value="MGLU3">MGLU3</option><option value="MOTV3">MOTV3</option><option value="MRVE3">MRVE3</option><option value="MULT3">MULT3</option><option value="NATU3">NATU3</option><option value="PETR3">PETR3</option><option value="PETR4">PETR4</option><option value="POMO4">POMO4</option><option value="PRIO3">PRIO3</option><option value="PSSA3">PSSA3</option><option value="RADL3">RADL3</option><option value="RAIL3">RAIL3</option><option value="RDOR3">RDOR3</option><option value="RECV3">RECV3</option><option value="RENT3">RENT3</option><option value="SANB11">SANB11</option><option value="SBSP3">SBSP3</option><option value="SLCE3">SLCE3</option><option value="SMFT3">SMFT3</option><option value="SUZB3">SUZB3</option><option value="TAEE11">TAEE11</option><option value="TIMS3">TIMS3</option><option value="TOTS3">TOTS3</option><option value="UGPA3">UGPA3</option><option value="USIM5">USIM5</option><option value="VALE3">VALE3</option><option value="VAMO3">VAMO3</option><option value="VBBR3">VBBR3</option><option value="VIVA3">VIVA3</option><option value="VIVT3">VIVT3</option><option value="WEGE3">WEGE3</option><option value="YDUQ3">YDUQ3</option></select></div>
+    <span class="sub" id="hint" style="color:var(--faint)">selecione um emissor do Ibovespa</span>
+  </div>
+  <section class="kpis c5">
+    <div class="kpi"><div class="lbl">Fluxo líquido 12m</div><div class="val" id="k_net">—</div></div>
+    <div class="kpi"><div class="lbl">Compras (R$)</div><div class="val pos" id="k_buy">—</div></div>
+    <div class="kpi"><div class="lbl">Vendas (R$)</div><div class="val neg" id="k_sell">—</div></div>
+    <div class="kpi"><div class="lbl">Meses c/ compra líq.</div><div class="val" id="k_pos">—</div></div>
+    <div class="kpi"><div class="lbl">Sinais de recompra</div><div class="val gold" id="k_rec">—</div></div>
+  </section>
+  <section class="card">
+    <div class="card-h"><h2 id="h_title">—</h2><span class="meta">jul/25 – jun/26 · R$ mi/mês</span></div>
+    <div class="legend">
+      <span><i style="background:var(--buy)"></i>Compras de insiders</span>
+      <span><i style="background:var(--sell)"></i>Vendas de insiders</span>
+      <span><i class="ln" style="background:var(--gold)"></i>Fluxo líquido</span>
+      <span><i style="background:var(--gold);opacity:.5"></i>Mês com recompra/tesouraria</span>
+    </div>
+    <div class="hist-chart" id="histsvg"></div>
+  </section></section>
+
+  <footer><span>cvm-insider-monitor · dashboard</span><span>15/06/2026 19:12</span></footer>
+</div>
+<script>(()=>{
+  const DATA = {"ALOS3": {"compras": [93500167.0, 20509419.0, 0.0, 64307143.0, 67297873.0, 64758753.0, 0.0, 43932104.0, 81862925.0, 0.0, 23058181.0, 45337471.0], "vendas": [63278662.0, 38536822.0, 43634174.0, 36692584.0, 0.0, 26429762.0, 0.0, 0.0, 2409905.0, 0.0, 0.0, 16077701.0], "recompra": [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]}, "ABEV3": {"compras": [19955138.0, 0.0, 0.0, 6990479.0, 0.0, 51262614.0, 15496653.0, 5407030.0, 27192486.0, 0.0, 11388040.0, 52931385.0], "vendas": [0.0, 0.0, 0.0, 0.0, 0.0, 4514974.0, 0.0, 10935581.0, 21767604.0, 40879068.0, 0.0, 0.0], "recompra": [0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0]}, "ASAI3": {"compras": [14304432.0, 0.0, 33561981.0, 0.0, 10575227.0, 53456414.0, 0.0, 0.0, 19134269.0, 54011753.0, 21110046.0, 47431920.0], "vendas": [11564163.0, 0.0, 0.0, 0.0, 0.0, 29561942.0, 805239.0, 28628303.0, 3386831.0, 31666078.0, 40537617.0, 25776337.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0]}, "AURE3": {"compras": [0.0, 8738485.0, 0.0, 0.0, 0.0, 0.0, 0.0, 9671861.0, 0.0, 8534613.0, 0.0, 3784460.0], "vendas": [5754639.0, 6615343.0, 0.0, 6285012.0, 0.0, 8151494.0, 0.0, 0.0, 4468203.0, 0.0, 3725863.0, 8838329.0], "recompra": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "AXIA3": {"compras": [3337485.0, 7791436.0, 0.0, 0.0, 0.0, 9060612.0, 6476270.0, 10185142.0, 4655666.0, 6600157.0, 3917608.0, 0.0], "vendas": [0.0, 0.0, 7013289.0, 4818524.0, 0.0, 0.0, 4503744.0, 0.0, 1771891.0, 4523854.0, 890682.0, 0.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "AXIA6": {"compras": [32217396.0, 0.0, 0.0, 0.0, 30991495.0, 29554878.0, 17410181.0, 0.0, 12494374.0, 12058034.0, 58164292.0, 29462427.0], "vendas": [14417763.0, 19840554.0, 0.0, 0.0, 37798940.0, 0.0, 28749201.0, 17154764.0, 43579816.0, 22642835.0, 18026277.0, 2965510.0], "recompra": [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]}, "AZZA3": {"compras": [29075089.0, 97259991.0, 0.0, 24544007.0, 11327635.0, 21354716.0, 0.0, 57198854.0, 80003330.0, 0.0, 25849527.0, 45536104.0], "vendas": [0.0, 0.0, 0.0, 0.0, 9945451.0, 0.0, 16545566.0, 49548602.0, 0.0, 80866660.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "B3SA3": {"compras": [1152682.0, 8456540.0, 9634125.0, 10861214.0, 0.0, 0.0, 0.0, 2403252.0, 0.0, 10102876.0, 2291374.0, 1395288.0], "vendas": [3218288.0, 3091472.0, 218742.0, 0.0, 6056441.0, 0.0, 3358385.0, 0.0, 0.0, 8178668.0, 3068771.0, 1440333.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "BBSE3": {"compras": [52790491.0, 0.0, 21338231.0, 0.0, 23375644.0, 0.0, 0.0, 15053247.0, 34078710.0, 35852195.0, 0.0, 56716405.0], "vendas": [34527141.0, 15377340.0, 0.0, 29689255.0, 28901937.0, 27692839.0, 0.0, 24752596.0, 28710567.0, 2030113.0, 22298441.0, 23704121.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "BBDC3": {"compras": [0.0, 1611679.0, 0.0, 0.0, 15055372.0, 0.0, 3023985.0, 9283448.0, 38375590.0, 0.0, 18516129.0, 43504530.0], "vendas": [41826391.0, 26361358.0, 0.0, 0.0, 0.0, 0.0, 5308420.0, 0.0, 16380896.0, 5799223.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "BBDC4": {"compras": [15064472.0, 0.0, 8348651.0, 29444703.0, 4000875.0, 25139681.0, 0.0, 22769553.0, 0.0, 24459021.0, 27320519.0, 9838480.0], "vendas": [4409500.0, 0.0, 0.0, 0.0, 0.0, 9997619.0, 18817739.0, 4137016.0, 0.0, 0.0, 15639863.0, 4921936.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "BRAP4": {"compras": [3869343.0, 3350424.0, 11613239.0, 289407.0, 4418969.0, 1076876.0, 0.0, 5072940.0, 0.0, 1169393.0, 0.0, 0.0], "vendas": [5352916.0, 8931290.0, 0.0, 5263278.0, 1393079.0, 7692413.0, 0.0, 2749272.0, 0.0, 3798468.0, 0.0, 4392370.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "BBAS3": {"compras": [4927266.0, 10005933.0, 8521037.0, 8894787.0, 0.0, 1377753.0, 5505114.0, 0.0, 0.0, 3740761.0, 10649028.0, 0.0], "vendas": [6000628.0, 8620081.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2118679.0, 0.0, 7354156.0, 3078675.0, 447362.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "BRKM5": {"compras": [105411106.0, 99819754.0, 26627748.0, 15631809.0, 66905701.0, 22064665.0, 66405225.0, 80848333.0, 20851607.0, 44620147.0, 43789830.0, 0.0], "vendas": [62707810.0, 70798123.0, 0.0, 0.0, 4288243.0, 0.0, 72061999.0, 0.0, 0.0, 76674134.0, 80778721.0, 54080539.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "BRAV3": {"compras": [0.0, 6769391.0, 2480761.0, 0.0, 2399336.0, 0.0, 1132757.0, 10043037.0, 1489298.0, 6138785.0, 3976926.0, 11783413.0], "vendas": [3394141.0, 94240.0, 0.0, 3529802.0, 2964582.0, 0.0, 0.0, 0.0, 654143.0, 6901753.0, 0.0, 5942065.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "BPAC11": {"compras": [0.0, 0.0, 0.0, 0.0, 56154568.0, 8176528.0, 0.0, 14317829.0, 10112080.0, 0.0, 0.0, 24203416.0], "vendas": [19855502.0, 4619844.0, 10526182.0, 42007849.0, 1201873.0, 0.0, 39734248.0, 0.0, 0.0, 0.0, 26891187.0, 41845144.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "CXSE3": {"compras": [66443779.0, 3570612.0, 0.0, 77935932.0, 37308090.0, 30409240.0, 0.0, 56233080.0, 66550579.0, 95320493.0, 94289487.0, 58857901.0], "vendas": [0.0, 0.0, 0.0, 32657405.0, 73957525.0, 37543687.0, 9284750.0, 1961185.0, 0.0, 19791739.0, 0.0, 76159581.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]}, "CEAB3": {"compras": [51989491.0, 34008201.0, 32255398.0, 0.0, 21389864.0, 18470904.0, 0.0, 50275036.0, 0.0, 0.0, 52175185.0, 0.0], "vendas": [0.0, 4435338.0, 0.0, 40280643.0, 0.0, 42027131.0, 41519206.0, 0.0, 0.0, 0.0, 6069591.0, 0.0], "recompra": [0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0]}, "CMIG4": {"compras": [8068490.0, 24111441.0, 0.0, 0.0, 209335.0, 4935393.0, 864832.0, 27492298.0, 1920809.0, 0.0, 22330930.0, 13067067.0], "vendas": [0.0, 2604592.0, 0.0, 0.0, 0.0, 0.0, 3392387.0, 59821.0, 0.0, 18609039.0, 13362142.0, 0.0], "recompra": [0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0]}, "COGN3": {"compras": [7790389.0, 6075221.0, 9751643.0, 21694153.0, 19195935.0, 12760794.0, 22958867.0, 7444196.0, 9473895.0, 3852523.0, 15650578.0, 2742747.0], "vendas": [19184269.0, 0.0, 13692450.0, 0.0, 16249658.0, 18442115.0, 14626521.0, 14827661.0, 15719683.0, 0.0, 0.0, 10617589.0], "recompra": [0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1]}, "CSMG3": {"compras": [0.0, 0.0, 4812315.0, 27359926.0, 0.0, 7394686.0, 17816616.0, 5447989.0, 8294854.0, 15363903.0, 1717391.0, 0.0], "vendas": [0.0, 21294293.0, 22381612.0, 0.0, 0.0, 18093427.0, 10632759.0, 0.0, 13971807.0, 0.0, 0.0, 22454710.0], "recompra": [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]}, "CPLE3": {"compras": [35126971.0, 0.0, 33726242.0, 28122263.0, 30277113.0, 0.0, 2648759.0, 32194079.0, 71992133.0, 9708279.0, 35443816.0, 0.0], "vendas": [0.0, 12220401.0, 0.0, 0.0, 0.0, 0.0, 45841024.0, 0.0, 0.0, 0.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]}, "CSAN3": {"compras": [54450790.0, 18511324.0, 0.0, 43151611.0, 0.0, 0.0, 0.0, 0.0, 23098408.0, 0.0, 13203331.0, 32820799.0], "vendas": [0.0, 0.0, 16972904.0, 0.0, 36682277.0, 0.0, 2145470.0, 0.0, 0.0, 0.0, 41691454.0, 0.0], "recompra": [1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "CPFE3": {"compras": [0.0, 0.0, 41355594.0, 40081450.0, 55046130.0, 0.0, 2422373.0, 23843137.0, 22062915.0, 0.0, 0.0, 17517391.0], "vendas": [871460.0, 0.0, 0.0, 0.0, 39486545.0, 38202985.0, 18571782.0, 0.0, 8261090.0, 44253058.0, 0.0, 43821598.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "CMIN3": {"compras": [0.0, 0.0, 5814037.0, 27141977.0, 13163656.0, 0.0, 8480712.0, 26900369.0, 8105844.0, 0.0, 213885.0, 4191975.0], "vendas": [5669511.0, 3539363.0, 12115645.0, 0.0, 0.0, 12968809.0, 9950527.0, 0.0, 0.0, 12408236.0, 0.0, 0.0], "recompra": [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "CURY3": {"compras": [48420370.0, 0.0, 26592040.0, 0.0, 18600492.0, 661708.0, 23956241.0, 6050285.0, 0.0, 22159133.0, 0.0, 20088140.0], "vendas": [2593989.0, 42249636.0, 0.0, 0.0, 0.0, 36455113.0, 37244681.0, 18101939.0, 0.0, 0.0, 0.0, 9510250.0], "recompra": [0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]}, "CYRE3": {"compras": [0.0, 283240.0, 0.0, 3250753.0, 12246502.0, 0.0, 4443827.0, 18488122.0, 0.0, 19963577.0, 17182880.0, 17800956.0], "vendas": [0.0, 0.0, 0.0, 9677433.0, 0.0, 0.0, 8507632.0, 19268046.0, 18843350.0, 0.0, 724674.0, 0.0], "recompra": [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]}, "DIRR3": {"compras": [0.0, 0.0, 50413020.0, 30696140.0, 15042643.0, 0.0, 47227705.0, 46248187.0, 0.0, 0.0, 37023331.0, 37752587.0], "vendas": [33153768.0, 44553199.0, 42196311.0, 2917056.0, 20432955.0, 0.0, 10881231.0, 40756030.0, 0.0, 0.0, 3234808.0, 0.0], "recompra": [0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0]}, "EMBJ3": {"compras": [40847469.0, 0.0, 0.0, 0.0, 77513859.0, 28709857.0, 0.0, 0.0, 0.0, 23801124.0, 0.0, 1633789.0], "vendas": [56688513.0, 16976257.0, 0.0, 0.0, 0.0, 0.0, 0.0, 71019741.0, 0.0, 0.0, 0.0, 48057319.0], "recompra": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "ENGI11": {"compras": [20494155.0, 5965727.0, 43384022.0, 1393908.0, 18961955.0, 59556244.0, 0.0, 13084084.0, 23678622.0, 37380039.0, 0.0, 56672131.0], "vendas": [38262306.0, 0.0, 15474188.0, 0.0, 27249380.0, 37290135.0, 0.0, 0.0, 0.0, 11403303.0, 0.0, 0.0], "recompra": [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0]}, "ENEV3": {"compras": [0.0, 2854373.0, 2950814.0, 0.0, 0.0, 11561158.0, 0.0, 7423334.0, 9150074.0, 6440743.0, 11918644.0, 1165951.0], "vendas": [8990183.0, 0.0, 4197321.0, 1238878.0, 0.0, 1070438.0, 0.0, 4440940.0, 0.0, 3772970.0, 1240955.0, 2406758.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "EGIE3": {"compras": [5151043.0, 594819.0, 0.0, 0.0, 4879279.0, 4387638.0, 0.0, 0.0, 5106227.0, 1025555.0, 9832326.0, 575406.0], "vendas": [0.0, 555627.0, 0.0, 6745104.0, 63700.0, 0.0, 4478690.0, 0.0, 0.0, 0.0, 0.0, 4968813.0], "recompra": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]}, "EQTL3": {"compras": [7403950.0, 0.0, 0.0, 8126221.0, 10025080.0, 8435870.0, 0.0, 0.0, 2403490.0, 6138237.0, 0.0, 9635454.0], "vendas": [1903617.0, 5628764.0, 0.0, 4005008.0, 3203321.0, 6218408.0, 0.0, 3668429.0, 0.0, 4945880.0, 7409228.0, 4075125.0], "recompra": [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]}, "FLRY3": {"compras": [14414275.0, 7837906.0, 24745083.0, 16785901.0, 6939648.0, 1052148.0, 4546690.0, 0.0, 3624228.0, 20678345.0, 25728404.0, 0.0], "vendas": [7380494.0, 0.0, 0.0, 20466735.0, 0.0, 12781734.0, 17206412.0, 4483423.0, 13104986.0, 21398053.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, "GGBR4": {"compras": [0.0, 42083642.0, 0.0, 0.0, 58594069.0, 0.0, 59390152.0, 288810.0, 0.0, 0.0, 99333396.0, 75017972.0], "vendas": [64283311.0, 0.0, 60781172.0, 34596770.0, 0.0, 58857145.0, 75056074.0, 0.0, 76885208.0, 73062496.0, 35378769.0, 74948000.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]}, "GOAU4": {"compras": [0.0, 0.0, 28166650.0, 0.0, 18382250.0, 0.0, 0.0, 17402270.0, 23825010.0, 0.0, 0.0, 0.0], "vendas": [10956387.0, 0.0, 21373770.0, 11018031.0, 0.0, 2514090.0, 18669289.0, 0.0, 0.0, 0.0, 15185272.0, 0.0], "recompra": [1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0]}, "HAPV3": {"compras": [11089431.0, 0.0, 0.0, 41083583.0, 8283458.0, 59998645.0, 12415804.0, 58462019.0, 0.0, 0.0, 0.0, 50946902.0], "vendas": [27460974.0, 0.0, 0.0, 0.0, 0.0, 0.0, 25300883.0, 0.0, 0.0, 0.0, 10678635.0, 0.0], "recompra": [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0]}, "HYPE3": {"compras": [8786528.0, 0.0, 48965488.0, 0.0, 0.0, 29018539.0, 0.0, 26334145.0, 24071536.0, 57688983.0, 9979904.0, 0.0], "vendas": [44256696.0, 0.0, 0.0, 41474958.0, 43431120.0, 0.0, 6632339.0, 0.0, 0.0, 0.0, 15147138.0, 0.0], "recompra": [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0]}, "IGTI11": {"compras": [46398901.0, 73187076.0, 60632757.0, 59934394.0, 0.0, 86457430.0, 53755720.0, 0.0, 0.0, 0.0, 0.0, 71898706.0], "vendas": [20767227.0, 72178965.0, 61982649.0, 0.0, 0.0, 55534902.0, 0.0, 0.0, 4094697.0, 0.0, 0.0, 75031958.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "ISAE4": {"compras": [86776584.0, 76858636.0, 0.0, 37060026.0, 0.0, 0.0, 106382491.0, 93714656.0, 101889921.0, 0.0, 83729763.0, 20232124.0], "vendas": [74285711.0, 0.0, 0.0, 49451753.0, 0.0, 15059712.0, 10147452.0, 63614123.0, 0.0, 0.0, 0.0, 55588836.0], "recompra": [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]}, "ITSA4": {"compras": [0.0, 0.0, 424785.0, 0.0, 0.0, 7675281.0, 0.0, 6660962.0, 6494383.0, 0.0, 0.0, 5479590.0], "vendas": [8568371.0, 2513674.0, 4819118.0, 0.0, 3197804.0, 0.0, 3896860.0, 8445231.0, 0.0, 0.0, 6902560.0, 959197.0], "recompra": [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1]}, "ITUB4": {"compras": [0.0, 11943313.0, 2879483.0, 2942663.0, 8765078.0, 11840141.0, 263769.0, 0.0, 2484532.0, 279887.0, 7506353.0, 9607002.0], "vendas": [4183468.0, 0.0, 0.0, 0.0, 0.0, 8335147.0, 6488931.0, 0.0, 0.0, 0.0, 5933559.0, 0.0], "recompra": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "KLBN11": {"compras": [21720117.0, 0.0, 10250918.0, 7784192.0, 5899041.0, 25119962.0, 22399316.0, 16329187.0, 21797367.0, 0.0, 8674275.0, 13810859.0], "vendas": [14754827.0, 17333297.0, 0.0, 0.0, 1345054.0, 13282862.0, 5660238.0, 3070916.0, 6174919.0, 14072889.0, 0.0, 22301094.0], "recompra": [0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1]}, "RENT3": {"compras": [0.0, 0.0, 30819054.0, 37582704.0, 54632379.0, 3453024.0, 37480624.0, 50745582.0, 16885336.0, 19169607.0, 0.0, 0.0], "vendas": [407149.0, 0.0, 0.0, 0.0, 0.0, 0.0, 14472470.0, 1244014.0, 16161238.0, 41477481.0, 26669331.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1]}, "LREN3": {"compras": [0.0, 6765708.0, 4778797.0, 0.0, 29447617.0, 31216863.0, 0.0, 0.0, 33683787.0, 74777249.0, 50609463.0, 0.0], "vendas": [0.0, 44002741.0, 79761855.0, 1693501.0, 0.0, 0.0, 0.0, 68527930.0, 61077710.0, 0.0, 43176919.0, 0.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "MGLU3": {"compras": [0.0, 74704504.0, 95087756.0, 26668018.0, 93092902.0, 0.0, 60740025.0, 0.0, 23413374.0, 0.0, 7860022.0, 10941658.0], "vendas": [70357825.0, 0.0, 74276447.0, 44024237.0, 0.0, 31550716.0, 35276440.0, 37582952.0, 0.0, 17821256.0, 27043481.0, 21242876.0], "recompra": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]}, "POMO4": {"compras": [0.0, 0.0, 7779868.0, 0.0, 7568766.0, 0.0, 0.0, 29392333.0, 0.0, 0.0, 4449973.0, 14991024.0], "vendas": [0.0, 10655993.0, 4149764.0, 0.0, 4168508.0, 20644010.0, 6523120.0, 0.0, 0.0, 0.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]}, "MBRF3": {"compras": [937441.0, 10128013.0, 619467.0, 340716.0, 10156558.0, 0.0, 0.0, 6817590.0, 0.0, 7051572.0, 4601115.0, 0.0], "vendas": [0.0, 6712242.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3492164.0, 0.0, 4876643.0, 3348958.0, 2635343.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0]}, "BEEF3": {"compras": [18842437.0, 3621402.0, 17307586.0, 0.0, 2696326.0, 6255321.0, 0.0, 0.0, 3454391.0, 0.0, 5337403.0, 0.0], "vendas": [0.0, 15389109.0, 0.0, 0.0, 0.0, 0.0, 4208177.0, 8557238.0, 14112881.0, 9703007.0, 10669048.0, 16280040.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "MOTV3": {"compras": [27446052.0, 20560414.0, 20198978.0, 4172397.0, 25094288.0, 3026216.0, 2795708.0, 19491118.0, 1613607.0, 0.0, 0.0, 0.0], "vendas": [0.0, 19002757.0, 0.0, 0.0, 1290811.0, 0.0, 19356675.0, 9588058.0, 0.0, 9931226.0, 5988969.0, 21575519.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "MRVE3": {"compras": [86831184.0, 51815164.0, 8578948.0, 65023658.0, 0.0, 0.0, 0.0, 0.0, 4015167.0, 0.0, 0.0, 102464610.0], "vendas": [74568289.0, 0.0, 0.0, 0.0, 922614.0, 72122436.0, 36117807.0, 11657195.0, 38075953.0, 48874984.0, 0.0, 25949224.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]}, "MULT3": {"compras": [0.0, 0.0, 0.0, 0.0, 5053336.0, 2703772.0, 6226778.0, 0.0, 0.0, 0.0, 4613748.0, 7099555.0], "vendas": [7597828.0, 4652902.0, 6069569.0, 0.0, 0.0, 0.0, 7469311.0, 8814912.0, 4190503.0, 2587623.0, 0.0, 6297909.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "NATU3": {"compras": [6410018.0, 8393805.0, 3665809.0, 0.0, 0.0, 6194624.0, 9082859.0, 2115100.0, 0.0, 0.0, 6229044.0, 7296220.0], "vendas": [0.0, 7204497.0, 1885008.0, 0.0, 4206359.0, 0.0, 0.0, 0.0, 0.0, 0.0, 7252657.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "PETR3": {"compras": [10339003.0, 2027139.0, 4012032.0, 0.0, 0.0, 713527.0, 6471456.0, 7519460.0, 10470118.0, 5130645.0, 0.0, 4175484.0], "vendas": [0.0, 5655803.0, 0.0, 5832302.0, 0.0, 4930643.0, 0.0, 0.0, 5271513.0, 0.0, 2562392.0, 245415.0], "recompra": [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "PETR4": {"compras": [58300354.0, 55715429.0, 0.0, 3533185.0, 20472807.0, 0.0, 0.0, 58124090.0, 0.0, 13411640.0, 0.0, 17744587.0], "vendas": [6933236.0, 40273605.0, 0.0, 0.0, 0.0, 17028335.0, 0.0, 0.0, 0.0, 0.0, 18699940.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, "RECV3": {"compras": [0.0, 0.0, 0.0, 53075450.0, 0.0, 94926102.0, 10955939.0, 81132143.0, 78394982.0, 56726722.0, 66553217.0, 40540049.0], "vendas": [0.0, 33400265.0, 1362741.0, 0.0, 2392197.0, 35943525.0, 45074117.0, 64178522.0, 37387941.0, 0.0, 0.0, 13334243.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]}, "PSSA3": {"compras": [12148665.0, 96569888.0, 44212367.0, 8318225.0, 41204306.0, 0.0, 0.0, 57240338.0, 75975866.0, 100704512.0, 0.0, 0.0], "vendas": [0.0, 56115379.0, 75363766.0, 0.0, 0.0, 31138585.0, 1539891.0, 16041261.0, 23854647.0, 77076047.0, 6565824.0, 73412005.0], "recompra": [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]}, "PRIO3": {"compras": [46041872.0, 19458121.0, 13578494.0, 50914848.0, 50146392.0, 29275389.0, 39905640.0, 54003922.0, 27071142.0, 0.0, 41710986.0, 36535124.0], "vendas": [12208304.0, 6602804.0, 42751659.0, 0.0, 0.0, 0.0, 16541718.0, 36116413.0, 0.0, 0.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "RADL3": {"compras": [4185925.0, 5602154.0, 5538980.0, 10044213.0, 5897580.0, 2516072.0, 0.0, 10506599.0, 6117688.0, 0.0, 0.0, 4293696.0], "vendas": [7645279.0, 662932.0, 5411373.0, 561166.0, 0.0, 5706463.0, 0.0, 6697905.0, 411528.0, 2920042.0, 7692828.0, 8044327.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "RDOR3": {"compras": [25994724.0, 25197518.0, 18728936.0, 8063247.0, 0.0, 19939224.0, 7594809.0, 2974702.0, 36514.0, 14888163.0, 15782405.0, 0.0], "vendas": [0.0, 0.0, 3025089.0, 0.0, 6807158.0, 22293985.0, 2019760.0, 2853883.0, 1366377.0, 626868.0, 0.0, 17360063.0], "recompra": [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]}, "RAIL3": {"compras": [51814922.0, 12291040.0, 46593082.0, 20046098.0, 1084992.0, 32878745.0, 27802481.0, 0.0, 17725788.0, 29561175.0, 0.0, 2779948.0], "vendas": [0.0, 0.0, 21261657.0, 0.0, 7192022.0, 0.0, 27878545.0, 38280674.0, 0.0, 0.0, 41276759.0, 10748795.0], "recompra": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "SBSP3": {"compras": [0.0, 0.0, 33243131.0, 0.0, 5377285.0, 56110811.0, 10203003.0, 0.0, 6871874.0, 38610082.0, 8634684.0, 48508962.0], "vendas": [19869680.0, 17696196.0, 32166075.0, 0.0, 0.0, 0.0, 0.0, 36160185.0, 0.0, 0.0, 1275749.0, 41045717.0], "recompra": [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]}, "SANB11": {"compras": [0.0, 0.0, 5775142.0, 29634185.0, 16051442.0, 0.0, 0.0, 0.0, 0.0, 24649986.0, 0.0, 0.0], "vendas": [10016308.0, 17301310.0, 0.0, 12826997.0, 22331569.0, 8513433.0, 13985721.0, 11445244.0, 0.0, 13838729.0, 0.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "CSNA3": {"compras": [0.0, 12018122.0, 6005997.0, 0.0, 0.0, 1119877.0, 0.0, 5673961.0, 5186035.0, 3003467.0, 4985499.0, 4076652.0], "vendas": [0.0, 0.0, 11894212.0, 16721372.0, 0.0, 17352576.0, 15119495.0, 23957.0, 0.0, 6387689.0, 0.0, 6641156.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "SLCE3": {"compras": [8137853.0, 5275732.0, 6220381.0, 0.0, 0.0, 5765182.0, 2584084.0, 6586245.0, 8814678.0, 5945661.0, 208328.0, 5234462.0], "vendas": [0.0, 0.0, 1604146.0, 0.0, 5783272.0, 2660538.0, 5269064.0, 0.0, 1666969.0, 0.0, 6466696.0, 5435512.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, "SMFT3": {"compras": [5433504.0, 0.0, 0.0, 0.0, 54509790.0, 21344881.0, 28287373.0, 57281482.0, 2785314.0, 13906878.0, 37200956.0, 58612782.0], "vendas": [0.0, 0.0, 0.0, 0.0, 28695602.0, 0.0, 35654109.0, 12205641.0, 0.0, 18987434.0, 35802483.0, 0.0], "recompra": [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]}, "SUZB3": {"compras": [53651092.0, 107837673.0, 0.0, 13316885.0, 85200787.0, 35303088.0, 66636584.0, 64660811.0, 0.0, 0.0, 0.0, 0.0], "vendas": [49219921.0, 0.0, 0.0, 70769637.0, 8529905.0, 31694231.0, 0.0, 29278985.0, 12824467.0, 0.0, 887481.0, 19539295.0], "recompra": [0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]}, "TAEE11": {"compras": [7537260.0, 0.0, 9834462.0, 0.0, 568263.0, 0.0, 21998618.0, 7914066.0, 2053770.0, 0.0, 0.0, 16240262.0], "vendas": [22298479.0, 20090380.0, 19418235.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 18654014.0, 7186359.0, 8296504.0], "recompra": [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0]}, "VIVT3": {"compras": [45329690.0, 34392310.0, 8193310.0, 0.0, 1181685.0, 0.0, 17247295.0, 34720760.0, 0.0, 31669410.0, 9049973.0, 0.0], "vendas": [0.0, 17793590.0, 13611812.0, 24671690.0, 36411247.0, 0.0, 0.0, 20765150.0, 38863884.0, 0.0, 15894762.0, 6221876.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, "TIMS3": {"compras": [5150480.0, 8705348.0, 3766565.0, 0.0, 1645000.0, 230465.0, 8083929.0, 1133924.0, 0.0, 7034694.0, 6820370.0, 7192558.0], "vendas": [6803243.0, 0.0, 3760503.0, 2504309.0, 8754080.0, 0.0, 0.0, 4462252.0, 0.0, 3777677.0, 0.0, 0.0], "recompra": [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1]}, "TOTS3": {"compras": [24775604.0, 28861041.0, 45204335.0, 49088316.0, 35292170.0, 21109183.0, 32541594.0, 17031617.0, 19066969.0, 29156663.0, 2999254.0, 52742877.0], "vendas": [0.0, 0.0, 0.0, 0.0, 80232469.0, 0.0, 0.0, 23508725.0, 0.0, 0.0, 0.0, 794230.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, "UGPA3": {"compras": [1772162.0, 11470492.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1680937.0, 6280082.0, 0.0, 891159.0, 8793787.0], "vendas": [2115964.0, 0.0, 4815504.0, 6507221.0, 0.0, 0.0, 847847.0, 2674121.0, 249337.0, 3889450.0, 8446487.0, 0.0], "recompra": [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "USIM5": {"compras": [107852870.0, 0.0, 36559561.0, 0.0, 94835313.0, 97522850.0, 25145490.0, 105327330.0, 55243930.0, 0.0, 8887253.0, 87398605.0], "vendas": [624131.0, 0.0, 29623678.0, 0.0, 64441698.0, 54720755.0, 57037784.0, 0.0, 30828598.0, 72878301.0, 36937396.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]}, "VALE3": {"compras": [11838326.0, 49838291.0, 30498671.0, 0.0, 57101542.0, 27949883.0, 43928034.0, 10519580.0, 21897127.0, 51158725.0, 50554876.0, 0.0], "vendas": [0.0, 8111003.0, 0.0, 29049166.0, 20537625.0, 0.0, 0.0, 27982995.0, 0.0, 0.0, 9309117.0, 0.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "VAMO3": {"compras": [0.0, 27258760.0, 24944889.0, 13381682.0, 8147255.0, 18038137.0, 0.0, 8242395.0, 1658073.0, 0.0, 0.0, 18184724.0], "vendas": [1715736.0, 1912539.0, 11312066.0, 17735313.0, 0.0, 21595154.0, 0.0, 16531137.0, 16961374.0, 0.0, 0.0, 0.0], "recompra": [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]}, "VBBR3": {"compras": [0.0, 7025451.0, 0.0, 6369721.0, 3198476.0, 7810550.0, 0.0, 0.0, 5437361.0, 293380.0, 0.0, 0.0], "vendas": [1402558.0, 2485167.0, 5349452.0, 8875553.0, 0.0, 8293399.0, 0.0, 0.0, 723959.0, 3045137.0, 7098501.0, 6994949.0], "recompra": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0]}, "VIVA3": {"compras": [0.0, 31206916.0, 11148987.0, 0.0, 64892496.0, 100672061.0, 0.0, 22987280.0, 90870692.0, 10260195.0, 49274659.0, 0.0], "vendas": [0.0, 3954883.0, 17790545.0, 11378957.0, 0.0, 15956477.0, 11176261.0, 25235611.0, 0.0, 0.0, 0.0, 17751218.0], "recompra": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "WEGE3": {"compras": [0.0, 9480757.0, 11318731.0, 5607992.0, 6045799.0, 9231734.0, 3827061.0, 5455779.0, 1546246.0, 374270.0, 1435151.0, 10313558.0], "vendas": [2714105.0, 5051379.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8332741.0], "recompra": [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]}, "YDUQ3": {"compras": [0.0, 0.0, 0.0, 32468012.0, 15705258.0, 28349903.0, 22633261.0, 0.0, 0.0, 0.0, 0.0, 18025716.0], "vendas": [0.0, 7967929.0, 0.0, 0.0, 0.0, 41448582.0, 35015650.0, 39406139.0, 0.0, 0.0, 12378345.0, 12861491.0], "recompra": [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]}};
+  const META = {"labels": ["jul/25", "ago/25", "set/25", "out/25", "nov/25", "dez/25", "jan/26", "fev/26", "mar/26", "abr/26", "mai/26", "jun/26"], "default": "VALE3"};
+  const sel = document.getElementById('emp'); if(!sel) return;
+  const box = document.getElementById('histsvg');
+  const fmtBRL=(v,signed)=>{ if(v==null||isNaN(v))return '\u2014'; const a=Math.abs(v); let s;
+    if(a>=1e9)s='R$ '+(v/1e9).toFixed(2)+' bi'; else if(a>=1e6)s='R$ '+(v/1e6).toFixed(1)+' mi';
+    else if(a>=1e3)s='R$ '+Math.round(v/1e3)+' mil'; else s='R$ '+Math.round(v);
+    return (signed&&v>0?'+':'')+s.replace('.', ','); };
+  function makeSVG(d){
+    const L=META.labels, n=L.length;
+    const W=720,H=340,padL=46,padR=14,padT=16,padB=42;
+    const plotW=W-padL-padR, plotH=H-padT-padB, y0=padT+plotH/2;
+    const buy=d.compras.map(v=>v/1e6), sell=d.vendas.map(v=>v/1e6);
+    const net=d.compras.map((v,i)=>(v-d.vendas[i])/1e6);
+    const maxabs=Math.max(1,...buy,...sell,...net.map(Math.abs));
+    const sc=(plotH/2-8)/maxabs, slot=plotW/n, bw=slot*0.46;
+    let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Histórico mensal de movimentações">`;
+    s+=`<line class="svg-grid" x1="${padL}" y1="${padT}" x2="${W-padR}" y2="${padT}"/>`;
+    s+=`<line class="svg-grid" x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}"/>`;
+    s+=`<line class="svg-zero" x1="${padL}" y1="${y0}" x2="${W-padR}" y2="${y0}"/>`;
+    s+=`<text class="svg-lbl" x="${padL-7}" y="${padT+4}" text-anchor="end">+${maxabs.toFixed(0)}</text>`;
+    s+=`<text class="svg-lbl" x="${padL-7}" y="${y0+4}" text-anchor="end">0</text>`;
+    s+=`<text class="svg-lbl" x="${padL-7}" y="${padT+plotH+4}" text-anchor="end">\u2212${maxabs.toFixed(0)}</text>`;
+    const pts=[];
+    for(let i=0;i<n;i++){
+      const xc=padL+slot*i+slot/2;
+      const hb=buy[i]*sc; if(hb>0.3) s+=`<rect x="${(xc-bw/2).toFixed(1)}" y="${(y0-hb).toFixed(1)}" width="${bw.toFixed(1)}" height="${hb.toFixed(1)}" rx="2" fill="var(--buy)"/>`;
+      const hs=sell[i]*sc; if(hs>0.3) s+=`<rect x="${(xc-bw/2).toFixed(1)}" y="${y0.toFixed(1)}" width="${bw.toFixed(1)}" height="${hs.toFixed(1)}" rx="2" fill="var(--sell)"/>`;
+      pts.push(`${xc.toFixed(1)},${(y0-net[i]*sc).toFixed(1)}`);
+      if(d.recompra[i]>0){ s+=`<path d="M ${xc-5} ${y0} L ${xc} ${y0-5} L ${xc+5} ${y0} L ${xc} ${y0+5} Z" fill="rgba(212,165,58,.5)" stroke="var(--gold)"/>`; }
+      s+=`<text class="svg-axis" x="${xc.toFixed(1)}" y="${(padT+plotH+18).toFixed(1)}" text-anchor="middle">${L[i]}</text>`;
+    }
+    s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="var(--gold)" stroke-width="2"/>`;
+    for(let i=0;i<n;i++){ const xc=padL+slot*i+slot/2; s+=`<circle cx="${xc.toFixed(1)}" cy="${(y0-net[i]*sc).toFixed(1)}" r="2.6" fill="var(--gold)"/>`; }
+    s+=`</svg>`; return s;
+  }
+  function render(tk){
+    const d=DATA[tk]||{compras:[],vendas:[],recompra:[]};
+    const tB=d.compras.reduce((a,b)=>a+b,0), tS=d.vendas.reduce((a,b)=>a+b,0), tN=tB-tS;
+    const net=d.compras.map((v,i)=>v-d.vendas[i]); const mp=net.filter(v=>v>0).length;
+    const tR=d.recompra.reduce((a,b)=>a+b,0);
+    document.getElementById('h_title').textContent=tk+' \u00b7 hist\u00f3rico mensal';
+    const hint=document.getElementById('hint'); if(hint) hint.textContent='';
+    const K=(id,val,cls)=>{const e=document.getElementById(id);e.textContent=val;if(cls)e.className='val '+cls;};
+    K('k_net',fmtBRL(tN,true),tN>=0?'pos':'neg'); K('k_buy',fmtBRL(tB),'pos'); K('k_sell',fmtBRL(tS),'neg');
+    K('k_pos',mp+' / 12',''); K('k_rec',tR,'gold');
+    if(box) box.innerHTML=makeSVG(d);
+  }
+  sel.value=META.default; render(META.default);
+  sel.addEventListener('change',e=>render(e.target.value));
+})();</script>
+<script>(()=>{
+  const tabs=[...document.querySelectorAll('.tab')], panels=[...document.querySelectorAll('.panel')];
+  function show(id){
+    tabs.forEach(t=>t.classList.toggle('active', t.dataset.t===id));
+    panels.forEach(p=>p.classList.toggle('active', p.id===id));
+  }
+  tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.t)));
+})();</script>
+</body></html>
