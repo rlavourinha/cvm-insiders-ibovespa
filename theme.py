@@ -49,9 +49,13 @@ h1 em{font-style:italic;color:var(--gold)}
 
 /* cards */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px}
-.card-h{display:flex;justify-content:space-between;align-items:baseline;padding:16px 20px;border-bottom:1px solid var(--line)}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
 .card-h h2{font-family:'Fraunces',serif;font-weight:560;font-size:18px;margin:0}
 .card-h .meta{font:500 11px 'IBM Plex Mono',monospace;color:var(--faint);letter-spacing:.04em}
+.card-tools{display:flex;align-items:center;gap:12px}
+.card-tools #tape-count{white-space:nowrap}
+.sel-sm select{font:600 12px 'IBM Plex Mono',monospace;padding:7px 30px 7px 11px;min-width:150px;letter-spacing:.02em}
+.sel-sm.sel::after{right:12px;font-size:12px}
 
 /* grid digest */
 .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:22px;align-items:start}

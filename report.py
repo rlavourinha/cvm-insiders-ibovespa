@@ -11,6 +11,7 @@ A mesma função alimenta o dashboard combinado, evitando divergência de layout
 
 from __future__ import annotations
 
+import html
 import json
 import math
 import pandas as pd
@@ -37,9 +38,41 @@ def _qtd(v) -> str:
     return f"{abs(v):,.0f}".replace(",", ".")
 
 
+def _preco(v) -> str:
+    # preço médio sempre com 2 casas decimais (ex.: R$ 10,69 / R$ 1.384,32)
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "—"
+    return f"R$ {v:,.2f}".replace(",", "·").replace(".", ",").replace("·", ".")
+
+
+def _org_label(o) -> str:
+    # rótulo limpo do comprador (órgão); a CVM sufixa "ou Vinculado"
+    s = str(o or "").strip()
+    if not s or s.lower() == "nan":
+        return "—"
+    return s.replace(" ou Vinculado", "").replace(" ou vinculado", "").strip() or "—"
+
+
 def _short(s, n=26) -> str:
     s = str(s or "")
     return s if len(s) <= n else s[: n - 1] + "…"
+
+
+# JS do filtro por comprador (string normal, não f-string, p/ não escapar { }).
+_FILTER_JS = """
+<script>(()=>{
+  const sel=document.getElementById('org-filter');
+  const cnt=document.getElementById('tape-count');
+  const rows=[...document.querySelectorAll('.tape .tape-row')];
+  const total=rows.length;
+  function apply(){
+    const v=sel?sel.value:''; let shown=0;
+    rows.forEach(r=>{const ok=!v||r.dataset.org===v; r.style.display=ok?'':'none'; if(ok)shown++;});
+    if(cnt)cnt.textContent = v ? (shown+' de '+total) : (total+' movimentações');
+  }
+  if(sel)sel.addEventListener('change',apply);
+  apply();
+})();</script>"""
 
 
 # ---------------------------------------------------------------------------
@@ -95,16 +128,22 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     src = insider.sort_values("volume", ascending=False, na_position="last") if not insider.empty else insider
     for _, r in src.iterrows():
         d = r.get("direcao", "compra")
-        rows.append(f"""<div class="tape-row {d}">
+        org = _org_label(r.get("orgao"))
+        rows.append(f"""<div class="tape-row {d}" data-org="{html.escape(org, quote=True)}">
           <span class="t-date">{_short(r.get('data_ref','—'),10)}</span>
           <span class="t-tkr">{r.get('ticker','—')}</span>
-          <span class="t-org">{_short(r.get('orgao','—'),24)}</span>
+          <span class="t-org">{_short(org,24)}</span>
           <span class="t-chip {d}">{'COMPRA' if d=='compra' else 'VENDA'}</span>
           <span class="t-num">{_qtd(r.get('quantidade'))}</span>
-          <span class="t-num">{(_brl(r.get('preco')) if pd.notna(r.get('preco')) else '—')}</span>
+          <span class="t-num">{_preco(r.get('preco'))}</span>
           <span class="t-num strong">{_brl(r.get('volume'))}</span></div>""")
     if not rows:
         rows.append('<div class="empty">Nenhuma movimentação de insider no delta desta execução.</div>')
+
+    # opções do filtro por comprador (órgão), derivadas dos dados presentes
+    orgaos = sorted({_org_label(o) for o in insider["orgao"].dropna()}) if (not insider.empty and "orgao" in insider) else []
+    org_opts = '<option value="">Todos os compradores</option>' + "".join(
+        f'<option value="{html.escape(o, quote=True)}">{html.escape(o)}</option>' for o in orgaos)
 
     # tesouraria/recompra
     tes = []
@@ -136,7 +175,9 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
   </section>
   <div class="grid">
     <section class="card">
-      <div class="card-h"><h2>Fita de movimentações</h2><span class="meta">art. 11 · Res. CVM 44</span></div>
+      <div class="card-h"><h2>Fita de movimentações</h2>
+        <div class="card-tools"><span class="meta" id="tape-count"></span>
+          <div class="sel sel-sm"><select id="org-filter" aria-label="Filtrar por comprador (órgão)">{org_opts}</select></div></div></div>
       <div class="tape-head"><span>Comp.</span><span>Papel</span><span>Órgão</span><span>Operação</span>
         <span style="text-align:right">Qtde</span><span style="text-align:right">Preço méd.</span><span style="text-align:right">Valor</span></div>
       <div class="tape">{''.join(rows)}</div>
@@ -153,7 +194,7 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     <div><h3>Fontes</h3><p><b>VLMO</b> (art. 11 Res. CVM 44) para insiders e tesouraria; <b>IPE</b> para recompra — este entrega o <b>link do documento</b>, não a quantidade.</p></div>
     <div><h3>Cadência &amp; chave</h3><p>Informe <b>mensal</b> (entrega até dia 10); não é intraday. Join por <b>Codigo_CVM</b>. O delta são os registros novos desde a última execução.</p></div>
   </section>"""
-    return {"body": body, "chart_data": chart_data}
+    return {"body": body + _FILTER_JS, "chart_data": chart_data}
 
 
 def digest_script(chart_data: dict) -> str:

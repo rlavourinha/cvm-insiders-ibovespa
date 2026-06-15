@@ -39,7 +39,10 @@ ANOS = [_ANO]
 # Filtros de evento
 # ---------------------------------------------------------------------------
 # Órgãos cujas movimentações interessam (match por substring, case-insensitive).
-ORGAOS_INSIDER = ["diretoria", "conselho de administra", "controlador"]
+# Os rótulos da CVM são "Diretor ou Vinculado", "Conselho de Administração ou
+# Vinculado", "Conselho Fiscal ou Vinculado", "Controlador ou Vinculado",
+# "Órgão Estatutário ou Vinculado" — os tokens abaixo casam todos eles.
+ORGAOS_INSIDER = ["diretor", "conselho de administra", "conselho fiscal", "controlador", "estatut"]
 # Tesouraria: a própria companhia / ações em tesouraria.
 ORGAOS_TESOURARIA = ["tesouraria", "companhia", "própria"]
 
