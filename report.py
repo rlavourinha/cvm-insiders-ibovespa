@@ -95,6 +95,27 @@ def _agg_row(r) -> str:
             f'<span class="t-num strong">{_brl(r.get("volume"))}</span></div>')
 
 
+def _tes_list(tesour, ipe, empty_msg: str) -> str:
+    """Lista de sinais de tesouraria (VLMO) + recompra (IPE). Reaproveitada pela
+    Fita e pela aba Último mês."""
+    items = []
+    if tesour is not None and not tesour.empty:
+        for _, r in tesour.iterrows():
+            items.append(f'<div class="tes-item"><div class="tes-head">'
+                         f'<span class="tkr">{r.get("ticker","—")}</span><span class="tag">VLMO · tesouraria</span></div>'
+                         f'<div class="tes-body">{r.get("direcao","—")} · {_qtd(r.get("quantidade"))} ações · {_brl(r.get("volume"))}</div></div>')
+    if ipe is not None and not ipe.empty:
+        for _, r in ipe.iterrows():
+            link = r.get("link")
+            href = (f'<a href="{link}" target="_blank" rel="noopener">abrir documento ↗</a>'
+                    if pd.notna(link) and link else "")
+            items.append(f'<div class="tes-item"><div class="tes-head">'
+                         f'<span class="tkr">{r.get("ticker","—")}</span><span class="tag gold">IPE · recompra</span></div>'
+                         f'<div class="tes-body">{_short(r.get("assunto") or r.get("categoria") or "Comunicado de recompra",80)}</div>'
+                         f'<div class="tes-meta">{_short(r.get("data_entrega","—"),10)} {href}</div></div>')
+    return "".join(items) or f'<div class="empty">{empty_msg}</div>'
+
+
 # JS do filtro por comprador (string normal, não f-string, p/ não escapar { }).
 _FILTER_JS = """
 <script>(()=>{
@@ -183,21 +204,7 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     org_opts = '<option value="">Todos os compradores</option>' + "".join(
         f'<option value="{html.escape(o, quote=True)}">{html.escape(o)}</option>' for o in orgaos)
 
-    # tesouraria/recompra
-    tes = []
-    for _, r in tesour.iterrows():
-        tes.append(f"""<div class="tes-item">
-          <div class="tes-head"><span class="tkr">{r.get('ticker','—')}</span><span class="tag">VLMO · tesouraria</span></div>
-          <div class="tes-body">{r.get('direcao','—')} · {_qtd(r.get('quantidade'))} ações · {_brl(r.get('volume'))}</div></div>""")
-    for _, r in ipe.iterrows():
-        link = r.get("link")
-        href = f'<a href="{link}" target="_blank" rel="noopener">abrir documento ↗</a>' if pd.notna(link) and link else ""
-        tes.append(f"""<div class="tes-item">
-          <div class="tes-head"><span class="tkr">{r.get('ticker','—')}</span><span class="tag gold">IPE · recompra</span></div>
-          <div class="tes-body">{_short(r.get('assunto') or r.get('categoria') or 'Comunicado de recompra',80)}</div>
-          <div class="tes-meta">{_short(r.get('data_entrega','—'),10)} {href}</div></div>""")
-    if not tes:
-        tes.append('<div class="empty">Sem sinais de tesouraria/recompra no delta.</div>')
+    tes_html = _tes_list(tesour, ipe, "Sem sinais de tesouraria/recompra no delta.")
 
     chart = by_tk.tail(14)
     chart = chart.reindex(chart.abs().sort_values().index)
@@ -230,7 +237,7 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
       <section class="card"><div class="card-h"><h2>Fluxo por tipo de comprador</h2><span class="meta">R$ mi</span></div>
         <div class="chart-box">{org_svg}</div></section>
       <section class="card"><div class="card-h"><h2>Tesouraria &amp; recompra</h2><span class="meta">VLMO + IPE</span></div>
-        <div class="tes-list">{''.join(tes)}</div></section>
+        <div class="tes-list">{tes_html}</div></section>
     </div>
   </div>
   <section class="method">
@@ -292,6 +299,8 @@ def month_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
         agg = agg.reindex(agg["volume"].abs().sort_values(ascending=False, na_position="last").index).head(25)
     rows = [_agg_row(r) for _, r in agg.iterrows()] or ['<div class="empty">Sem movimentações no mês.</div>']
 
+    mtes_html = _tes_list(None, mipe, f"Sem sinais de tesouraria/recompra em {meta.get('competencia','—')}.")
+
     body = f"""
   <div class="month-bar">
     <span>Competência <b>{meta.get('competencia','—')}</b></span>
@@ -315,6 +324,8 @@ def month_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
         <div class="chart-box">{emis_svg}</div></section>
       <section class="card"><div class="card-h"><h2>Fluxo por tipo de comprador</h2><span class="meta">R$ mi · mês</span></div>
         <div class="chart-box">{org_svg}</div></section>
+      <section class="card"><div class="card-h"><h2>Tesouraria &amp; recompra</h2><span class="meta">IPE · {len(mipe)} no mês</span></div>
+        <div class="tes-list">{mtes_html}</div></section>
     </div>
   </div>"""
     return {"body": body, "n": len(mdf)}
