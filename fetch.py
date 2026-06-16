@@ -44,9 +44,10 @@ def _save_state(state: dict) -> None:
     STATE.write_text(json.dumps(state, indent=2))
 
 
-def download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Path:
+def download(url: str, dest: Path, timeout: int = 90, retries: int = 5) -> Path:
     """Baixa url->dest com cache condicional. Retorna o caminho local.
-    Tenta novamente em falhas transientes de rede (comuns em CI)."""
+    Tenta novamente em falhas transientes de rede (o portal da CVM costuma
+    ficar lento/instável; mais tentativas com backoff aumentam a chance)."""
     state = _load_state()
     meta = state.get(url, {})
     headers = {"User-Agent": _UA}
@@ -76,5 +77,5 @@ def download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Path
             last_err = e
             if attempt < retries:
                 print(f"[fetch] tentativa {attempt}/{retries} falhou ({e}); novo retry…")
-                time.sleep(2 * attempt)
+                time.sleep(min(30, 4 * attempt))
     raise last_err  # esgotou as tentativas
