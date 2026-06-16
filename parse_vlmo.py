@@ -141,6 +141,7 @@ def parse(zip_path, cd_cvm_keep: set[int], cnpj_to_cd: dict[str, int] | None = N
     c_orgao = h.get("orgao") or _find(cols, r"TIPO CARGO|CARGO|ORGAO|CATEGORIA")
     c_mov = h.get("tipo_mov") or _find(cols, r"TIPO MOVIMENTA|INTENCAO|NATUREZA")
     c_oper = h.get("operacao") or _find(cols, r"TIPO OPERA|OPERACAO")
+    c_dmov = h.get("data_mov") or _find(cols, r"DATA MOVIMENTA|DATA NEGOCIA")
     c_esp = h.get("especie") or _find(cols, r"ESP(E|É)CIE|CARACTER|TIPO ATIVO|VALOR MOBILI")
     c_qtd = h.get("quantidade") or _find(cols, r"QUANTIDADE")
     c_prc = h.get("preco") or _find(cols, r"PRE(Ç|C)O")
@@ -169,6 +170,7 @@ def parse(zip_path, cd_cvm_keep: set[int], cnpj_to_cd: dict[str, int] | None = N
         "orgao": df[c_orgao] if c_orgao else pd.NA,
         "tipo_mov": df[c_mov] if c_mov else pd.NA,
         "operacao": df[c_oper] if c_oper else pd.NA,
+        "data_mov": df[c_dmov] if c_dmov else pd.NA,
         "especie": df[c_esp] if c_esp else pd.NA,
         "quantidade": _to_num(df[c_qtd]),
         "preco": _to_num(df[c_prc]) if c_prc else pd.NA,

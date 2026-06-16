@@ -89,6 +89,14 @@ h1 em{font-style:italic;color:var(--gold)}
 .t-chip.compra{color:var(--buy);background:rgba(79,178,134,.12)}
 .t-chip.venda{color:var(--sell);background:rgba(216,106,74,.12)}
 
+/* tabela consolidada (aba Último mês): inclui coluna Dias */
+.agg-head,.agg-row{display:grid;grid-template-columns:62px 1fr 70px 92px 84px 46px 100px;gap:10px;align-items:center;padding:9px 20px;font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+.agg-head{color:var(--faint);font-size:10px;letter-spacing:.08em;text-transform:uppercase;position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding-top:12px;padding-bottom:12px}
+.agg-row{border-left:2px solid transparent;border-bottom:1px solid rgba(36,50,64,.5);transition:background .12s}
+.agg-row:hover{background:var(--panel2)}
+.agg-row.compra{border-left-color:var(--buy)} .agg-row.venda{border-left-color:var(--sell)}
+.t-days{text-align:center;color:var(--muted)}
+
 /* tesouraria */
 .tes-list{padding:8px 0}
 .tes-item{padding:13px 20px;border-bottom:1px solid rgba(36,50,64,.5)} .tes-item:last-child{border-bottom:0}
@@ -125,6 +133,8 @@ footer{margin-top:26px;color:var(--faint);font-size:11.5px;font-family:'IBM Plex
   .grid{grid-template-columns:1fr} .method{grid-template-columns:1fr}
   .tape-head,.tape-row{grid-template-columns:64px 56px 1fr 62px 70px}
   .tape-head span:nth-child(6),.tape-head span:nth-child(7),.tape-row .t-num:nth-child(6){display:none}
+  .agg-head,.agg-row{grid-template-columns:54px 1fr 58px 78px 96px}
+  .agg-head span:nth-child(5),.agg-head span:nth-child(6),.agg-row span:nth-child(5),.agg-row span:nth-child(6){display:none}
 }
 """
 

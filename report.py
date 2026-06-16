@@ -77,6 +77,24 @@ def _tape_head() -> str:
             '<span style="text-align:right">Preço méd.</span><span style="text-align:right">Valor</span></div>')
 
 
+def _agg_head() -> str:
+    return ('<div class="agg-head"><span>Papel</span><span>Órgão</span><span>Operação</span>'
+            '<span style="text-align:right">Qtde</span><span style="text-align:right">Preço méd.</span>'
+            '<span style="text-align:center">Dias</span><span style="text-align:right">Valor</span></div>')
+
+
+def _agg_row(r) -> str:
+    d = r.get("direcao", "compra")
+    return (f'<div class="agg-row {d}">'
+            f'<span class="t-tkr">{r.get("ticker","—")}</span>'
+            f'<span class="t-org">{_short(r.get("orgao_lbl","—"),22)}</span>'
+            f'<span class="t-chip {d}">{"COMPRA" if d=="compra" else "VENDA"}</span>'
+            f'<span class="t-num">{_qtd(r.get("quantidade"))}</span>'
+            f'<span class="t-num">{_preco(r.get("preco"))}</span>'
+            f'<span class="t-days">{int(r.get("dias") or 0)}</span>'
+            f'<span class="t-num strong">{_brl(r.get("volume"))}</span></div>')
+
+
 # JS do filtro por comprador (string normal, não f-string, p/ não escapar { }).
 _FILTER_JS = """
 <script>(()=>{
@@ -258,9 +276,21 @@ def month_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     org_svg = _flow_svg({"labels": [_ORG_ABBR.get(k, k) for k in org_chart.index],
                          "values": [round(v/1e6, 3) for v in org_chart.values]}, labelW=92)
 
-    top = (mdf.reindex(mdf["volume"].abs().sort_values(ascending=False, na_position="last").index).head(25)
-           if "volume" in mdf and not mdf.empty else mdf.head(25))
-    rows = [_tape_row(r) for _, r in top.iterrows()] or ['<div class="empty">Sem movimentações no mês.</div>']
+    # consolida as movimentações do mês por (papel, órgão, operação): junta os
+    # vários pregões numa linha só, com nº de dias ativos.
+    work = mdf.copy()
+    work["_org"] = work["orgao"].map(_org_label)
+    day = work["data_mov"] if "data_mov" in work else pd.Series(pd.NA, index=work.index)
+    work["_day"] = day.fillna(work["data_ref"])
+    agg = (work.groupby(["ticker", "_org", "direcao"], dropna=False)
+               .agg(quantidade=("quantidade", "sum"),
+                    volume=("volume", "sum"),
+                    dias=("_day", lambda s: s.dropna().nunique()))
+               .reset_index().rename(columns={"_org": "orgao_lbl"})) if not work.empty else pd.DataFrame()
+    if not agg.empty:
+        agg["preco"] = (agg["volume"] / agg["quantidade"]).where(agg["quantidade"].abs() > 0)
+        agg = agg.reindex(agg["volume"].abs().sort_values(ascending=False, na_position="last").index).head(25)
+    rows = [_agg_row(r) for _, r in agg.iterrows()] or ['<div class="empty">Sem movimentações no mês.</div>']
 
     body = f"""
   <div class="month-bar">
@@ -276,8 +306,8 @@ def month_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
   </section>
   <div class="grid">
     <section class="card">
-      <div class="card-h"><h2>Maiores movimentações do mês</h2><span class="meta">top 25 · por volume</span></div>
-      {_tape_head()}
+      <div class="card-h"><h2>Maiores movimentações do mês</h2><span class="meta">consolidado por órgão · top 25</span></div>
+      {_agg_head()}
       <div class="tape">{''.join(rows)}</div>
     </section>
     <div class="right">
