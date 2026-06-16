@@ -58,12 +58,31 @@ def _short(s, n=26) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def _tape_row(r) -> str:
+    d = r.get("direcao", "compra")
+    org = _org_label(r.get("orgao"))
+    return (f'<div class="tape-row {d}" data-org="{html.escape(org, quote=True)}">'
+            f'<span class="t-date">{_short(r.get("data_ref","—"),10)}</span>'
+            f'<span class="t-tkr">{r.get("ticker","—")}</span>'
+            f'<span class="t-org">{_short(org,24)}</span>'
+            f'<span class="t-chip {d}">{"COMPRA" if d=="compra" else "VENDA"}</span>'
+            f'<span class="t-num">{_qtd(r.get("quantidade"))}</span>'
+            f'<span class="t-num">{_preco(r.get("preco"))}</span>'
+            f'<span class="t-num strong">{_brl(r.get("volume"))}</span></div>')
+
+
+def _tape_head() -> str:
+    return ('<div class="tape-head"><span>Comp.</span><span>Papel</span><span>Órgão</span>'
+            '<span>Operação</span><span style="text-align:right">Qtde</span>'
+            '<span style="text-align:right">Preço méd.</span><span style="text-align:right">Valor</span></div>')
+
+
 # JS do filtro por comprador (string normal, não f-string, p/ não escapar { }).
 _FILTER_JS = """
 <script>(()=>{
   const sel=document.getElementById('org-filter');
   const cnt=document.getElementById('tape-count');
-  const rows=[...document.querySelectorAll('.tape .tape-row')];
+  const rows=[...document.querySelectorAll('#fita-tape .tape-row')];
   const total=rows.length;
   function apply(){
     const v=sel?sel.value:''; let shown=0;
@@ -136,19 +155,8 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     n_recompra = len(ipe) + len(tesour)
 
     # fita
-    rows = []
     src = insider.sort_values("volume", ascending=False, na_position="last") if not insider.empty else insider
-    for _, r in src.iterrows():
-        d = r.get("direcao", "compra")
-        org = _org_label(r.get("orgao"))
-        rows.append(f"""<div class="tape-row {d}" data-org="{html.escape(org, quote=True)}">
-          <span class="t-date">{_short(r.get('data_ref','—'),10)}</span>
-          <span class="t-tkr">{r.get('ticker','—')}</span>
-          <span class="t-org">{_short(org,24)}</span>
-          <span class="t-chip {d}">{'COMPRA' if d=='compra' else 'VENDA'}</span>
-          <span class="t-num">{_qtd(r.get('quantidade'))}</span>
-          <span class="t-num">{_preco(r.get('preco'))}</span>
-          <span class="t-num strong">{_brl(r.get('volume'))}</span></div>""")
+    rows = [_tape_row(r) for _, r in src.iterrows()]
     if not rows:
         rows.append('<div class="empty">Nenhuma movimentação de insider no delta desta execução.</div>')
 
@@ -195,9 +203,8 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
       <div class="card-h"><h2>Fita de movimentações</h2>
         <div class="card-tools"><span class="meta" id="tape-count"></span>
           <div class="sel sel-sm"><select id="org-filter" aria-label="Filtrar por comprador (órgão)">{org_opts}</select></div></div></div>
-      <div class="tape-head"><span>Comp.</span><span>Papel</span><span>Órgão</span><span>Operação</span>
-        <span style="text-align:right">Qtde</span><span style="text-align:right">Preço méd.</span><span style="text-align:right">Valor</span></div>
-      <div class="tape">{''.join(rows)}</div>
+      {_tape_head()}
+      <div class="tape" id="fita-tape">{''.join(rows)}</div>
     </section>
     <div class="right">
       <section class="card"><div class="card-h"><h2>Fluxo líquido por emissor</h2><span class="meta">R$ mi</span></div>
@@ -214,6 +221,73 @@ def digest_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
     <div><h3>Cadência &amp; chave</h3><p>Informe <b>mensal</b> (entrega até dia 10); não é intraday. Join por <b>Codigo_CVM</b>. O delta são os registros novos desde a última execução.</p></div>
   </section>"""
     return {"body": body + _FILTER_JS, "chart_data": chart_data}
+
+
+def month_fragment(vlmo: pd.DataFrame, ipe: pd.DataFrame, meta: dict) -> dict:
+    """Aba 'Último mês': recorta a competência mais recente e mostra KPIs do mês,
+    maiores movimentações, fluxo por emissor e por tipo de comprador."""
+    vlmo = vlmo.copy() if vlmo is not None else pd.DataFrame()
+    ipe = ipe.copy() if ipe is not None else pd.DataFrame()
+    insider = vlmo[vlmo.get("classe", "insider") == "insider"] if not vlmo.empty else vlmo
+    if insider.empty or "data_ref" not in insider:
+        return {"body": '<div class="empty">Sem dados de movimentação no último mês.</div>', "n": 0}
+
+    ym = insider["data_ref"].dropna().astype(str).str[:7].max()
+    mdf = insider[insider["data_ref"].astype(str).str[:7] == ym]
+    mipe = pd.DataFrame()
+    if not ipe.empty:
+        key = ipe["data_ref"] if "data_ref" in ipe else ipe.get("data_entrega", pd.Series("", index=ipe.index))
+        mipe = ipe[key.astype(str).str[:7] == ym]
+
+    def signed_vol(df):
+        if df.empty or "volume" not in df: return pd.Series(dtype=float)
+        sign = df["direcao"].map({"compra": 1, "venda": -1}).fillna(0)
+        return df["volume"].fillna(0) * sign
+
+    sv = signed_vol(mdf)
+    fluxo = float(sv.sum()) if len(sv) else 0.0
+    by_tk = mdf.assign(_sv=sv.values).groupby("ticker")["_sv"].sum() if len(sv) else pd.Series(dtype=float)
+    n_buyers = int((by_tk > 0).sum())
+    n_emis_mes = int(mdf["ticker"].nunique()) if "ticker" in mdf else 0
+    by_org = (mdf.assign(_sv=sv.values, _org=mdf["orgao"].map(_org_label).values)
+                 .groupby("_org")["_sv"].sum()) if len(sv) else pd.Series(dtype=float)
+
+    emis = by_tk.reindex(by_tk.abs().sort_values().index).tail(12)
+    emis_svg = _flow_svg({"labels": list(emis.index), "values": [round(v/1e6, 3) for v in emis.values]})
+    org_chart = by_org.reindex(by_org.abs().sort_values().index)
+    org_svg = _flow_svg({"labels": [_ORG_ABBR.get(k, k) for k in org_chart.index],
+                         "values": [round(v/1e6, 3) for v in org_chart.values]}, labelW=92)
+
+    top = (mdf.reindex(mdf["volume"].abs().sort_values(ascending=False, na_position="last").index).head(25)
+           if "volume" in mdf and not mdf.empty else mdf.head(25))
+    rows = [_tape_row(r) for _, r in top.iterrows()] or ['<div class="empty">Sem movimentações no mês.</div>']
+
+    body = f"""
+  <div class="month-bar">
+    <span>Competência <b>{meta.get('competencia','—')}</b></span>
+    <span>Dados até <b>{meta.get('dados_ate','—')}</b></span>
+    <span><b>{meta.get('reportaram','—')}/{meta.get('n_universo','—')}</b> empresas entregaram o VLMO do mês</span>
+  </div>
+  <section class="kpis c4">
+    <div class="kpi"><div class="lbl">Movimentações no mês</div><div class="val">{len(mdf)}</div><div class="foot">de administradores</div></div>
+    <div class="kpi"><div class="lbl">Fluxo líquido do mês</div><div class="val {'pos' if fluxo>=0 else 'neg'}">{_brl(fluxo,True)}</div><div class="foot">compras − vendas (R$)</div></div>
+    <div class="kpi"><div class="lbl">Emissores com compra líq.</div><div class="val">{n_buyers}<span style="color:var(--faint);font-size:15px"> / {n_emis_mes}</span></div><div class="foot">com movimentação no mês</div></div>
+    <div class="kpi"><div class="lbl">Sinais de recompra</div><div class="val">{len(mipe)}</div><div class="foot">IPE no mês</div></div>
+  </section>
+  <div class="grid">
+    <section class="card">
+      <div class="card-h"><h2>Maiores movimentações do mês</h2><span class="meta">top 25 · por volume</span></div>
+      {_tape_head()}
+      <div class="tape">{''.join(rows)}</div>
+    </section>
+    <div class="right">
+      <section class="card"><div class="card-h"><h2>Fluxo líquido por emissor</h2><span class="meta">R$ mi · mês</span></div>
+        <div class="chart-box">{emis_svg}</div></section>
+      <section class="card"><div class="card-h"><h2>Fluxo por tipo de comprador</h2><span class="meta">R$ mi · mês</span></div>
+        <div class="chart-box">{org_svg}</div></section>
+    </div>
+  </div>"""
+    return {"body": body, "n": len(mdf)}
 
 
 def digest_script(chart_data: dict) -> str:

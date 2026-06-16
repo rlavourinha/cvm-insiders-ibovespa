@@ -36,6 +36,12 @@ h1 em{font-style:italic;color:var(--gold)}
 .panel{display:none}
 .panel.active{display:block}
 
+/* barra de competência (aba Último mês) */
+.month-bar{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:center;margin:0 0 22px;padding:13px 18px;
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:8px;
+  font:500 13px 'IBM Plex Mono',monospace;color:var(--muted)}
+.month-bar b{color:var(--paper);font-weight:600}
+
 /* kpis */
 .kpis{display:grid;gap:0;margin:0 0 24px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
 .kpis.c4{grid-template-columns:repeat(4,1fr)} .kpis.c5{grid-template-columns:repeat(5,1fr)}

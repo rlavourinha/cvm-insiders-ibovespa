@@ -86,6 +86,43 @@ def _pick_movement_table(zf: zipfile.ZipFile) -> str | None:
     return best if best_score >= 3 else best  # devolve o melhor de qualquer forma
 
 
+def filing_summary(zip_path, cnpj_to_cd: dict[str, int], keep_cd: set[int]) -> dict:
+    """Frescor/cobertura do informe (independe de filtro de movimento): qual a
+    competência mais recente, a data do dado mais novo e quais empresas da
+    watchlist já entregaram o VLMO desse mês — inclui quem só reportou saldo,
+    pois 'entregar o documento' não exige ter negociado."""
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            member = _pick_movement_table(zf)
+            if member is None:
+                return {}
+            raw = zf.read(member)
+    except (zipfile.BadZipFile, FileNotFoundError, OSError):
+        return {}
+    df = pd.read_csv(io.BytesIO(raw), sep=config.SEP, encoding=config.ENCODING, dtype=str)
+    cols = list(df.columns)
+    c_cnpj = config.COLUMN_HINTS.get("cnpj") or _find(cols, r"CNPJ")
+    c_ref = config.COLUMN_HINTS.get("data_ref") or _find(cols, r"DATA REFER|REFERENCIA|COMPETEN")
+    c_mov = _find(cols, r"DATA MOVIMENTA")
+    if not (c_cnpj and c_ref):
+        return {}
+    cd = df[c_cnpj].map(lambda x: cnpj_to_cd.get(_only_digits(x)))
+    keep = df.assign(_cd=cd)
+    keep = keep[keep["_cd"].isin(keep_cd)]
+    if keep.empty:
+        return {}
+    comp = str(keep[c_ref].dropna().max())                  # ex.: "2026-05-01"
+    latest = keep[keep[c_ref] == comp]
+    reportaram = sorted({int(x) for x in latest["_cd"].dropna()})
+    dados_ate = None
+    if c_mov:
+        dm = pd.to_datetime(latest[c_mov], errors="coerce").max()
+        if pd.notna(dm):
+            dados_ate = dm.strftime("%Y-%m-%d")
+    return {"competencia": comp, "dados_ate": dados_ate,
+            "reportaram": reportaram, "n_total": len(keep_cd)}
+
+
 def parse(zip_path, cd_cvm_keep: set[int], cnpj_to_cd: dict[str, int] | None = None) -> pd.DataFrame:
     with zipfile.ZipFile(zip_path) as zf:
         member = _pick_movement_table(zf)

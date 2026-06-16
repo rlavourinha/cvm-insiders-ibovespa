@@ -45,7 +45,7 @@ def compute_delta(df):
 
 
 def collect():
-    """Pipeline de produção -> (vlmo, ipe, delta, n_emis)."""
+    """Pipeline de produção -> (vlmo, ipe, delta, n_emis, info)."""
     import resolver
     from fetch import download
     import parse_vlmo, parse_ipe
@@ -54,10 +54,14 @@ def collect():
     cd2tk = resolver.cd_to_tickers(mp)
     tk_of = lambda cd: (cd2tk.get(int(cd), ["—"])[0] if pd.notna(cd) else "—")
     vlmo_all, ipe_all = [], []
+    info = {}
     for ano in config.ANOS:
         vz = download(config.VLMO_URL.format(ano=ano), config.DATA_DIR / f"vlmo_{ano}.zip")
         try: vlmo_all.append(parse_vlmo.parse(vz, keep, cnpj_map))
         except zipfile.BadZipFile: print(f"[vlmo] {ano}: indisponível")
+        s = parse_vlmo.filing_summary(vz, cnpj_map, keep)
+        if s and str(s.get("competencia", "")) > str(info.get("competencia", "")):
+            info = s  # fica com a competência mais recente entre os anos varridos
         ic = download(config.IPE_URL.format(ano=ano), config.DATA_DIR / f"ipe_{ano}.zip")
         ipe_all.append(parse_ipe.parse(ic, keep))
     vlmo = pd.concat(vlmo_all, ignore_index=True) if vlmo_all else pd.DataFrame()
@@ -68,7 +72,7 @@ def collect():
     if not delta.empty:
         delta = delta.assign(detected_at=dt.datetime.now().isoformat(timespec="seconds"))
         write_ledger(delta)
-    return vlmo, ipe, delta, len(set(keep))
+    return vlmo, ipe, delta, len(set(keep)), info
 
 
 def demo_events():
@@ -111,7 +115,7 @@ def _emit(vlmo, ipe, delta, mode, n_emis):
 
 
 def run():
-    vlmo, ipe, delta, n = collect()
+    vlmo, ipe, delta, n, _info = collect()
     _emit(vlmo, ipe, delta, "produção", n)
 
 
