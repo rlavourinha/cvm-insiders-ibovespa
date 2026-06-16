@@ -177,6 +177,14 @@ def parse(zip_path, cd_cvm_keep: set[int], cnpj_to_cd: dict[str, int] | None = N
     })
     out["fonte"] = "VLMO"
 
+    # Reapresentações: o arquivo da CVM guarda TODAS as versões do informe e cada
+    # versão re-lista as movimentações inteiras. Fica só a versão mais recente de
+    # cada (empresa, competência) — senão quem reapresentou aparece duplicado.
+    if "versao" in out and out["versao"].notna().any():
+        v = pd.to_numeric(out["versao"], errors="coerce").fillna(-1)
+        gmax = v.groupby([out["cnpj"].fillna(""), out["data_ref"].fillna("")]).transform("max")
+        out = out[v == gmax]
+
     # "Saldo Inicial/Final" são marcadores de posição, não negociações: descarta.
     mov_norm = out["tipo_mov"].map(lambda x: _norm(x) if pd.notna(x) else "")
     out = out[~mov_norm.str.contains("SALDO")]
