@@ -9,9 +9,16 @@ from __future__ import annotations
 
 import base64
 import re
+import socket
 import sys
 import urllib.request
 from pathlib import Path
+
+# Força IPv4 (runners de CI são só IPv4; evita "Network is unreachable").
+_orig_getaddrinfo = socket.getaddrinfo
+socket.getaddrinfo = lambda *a, **k: (
+    [ai for ai in _orig_getaddrinfo(*a, **k) if ai[0] == socket.AF_INET]
+    or _orig_getaddrinfo(*a, **k))
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
