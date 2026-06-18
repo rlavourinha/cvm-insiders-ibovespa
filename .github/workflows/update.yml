@@ -35,20 +35,26 @@ jobs:
           python-version: '3.12'
       - name: Instala dependências
         run: pip install -r requirements.txt
-      - name: Coleta na CVM e gera o dashboard
-        # O portal da CVM fica lento/instável às vezes; retry no nível do build
-        # (até 5 tentativas, 120s entre elas) dá tempo de ele voltar.
+      - name: Gera o dashboard (coleta CVM; cai para snapshot se o runner for bloqueado)
+        # A CVM responde normalmente de IPs residenciais, mas bloqueia/limita os
+        # IPs de datacenter (Azure) dos runners do GitHub. Tentamos a coleta ao
+        # vivo algumas vezes; se falhar, publicamos o snapshot versionado
+        # (dashboard_fallback.html), gerado localmente onde a CVM é acessível.
         run: |
+          SRC=output/dashboard.html
           n=0
           until python dashboard.py; do
-            n=$((n+1)); [ $n -ge 5 ] && { echo "::error::CVM indisponível após 5 tentativas"; exit 1; }
-            echo "[retry] tentativa $n falhou (CVM provavelmente lenta) — aguardando 120s…"
+            n=$((n+1))
+            if [ $n -ge 3 ]; then
+              echo "::warning::CVM inacessível ao runner após $n tentativas — publicando snapshot versionado"
+              SRC=dashboard_fallback.html
+              break
+            fi
+            echo "[retry] tentativa $n falhou — aguardando 120s…"
             sleep 120
           done
-      - name: Empacota versão offline (fontes embutidas)
-        run: |
           mkdir -p _site
-          python make_shareable.py output/dashboard.html _site/index.html
+          python make_shareable.py "$SRC" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
