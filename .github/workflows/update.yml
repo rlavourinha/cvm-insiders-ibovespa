@@ -36,7 +36,15 @@ jobs:
       - name: Instala dependências
         run: pip install -r requirements.txt
       - name: Coleta na CVM e gera o dashboard
-        run: python dashboard.py
+        # O portal da CVM fica lento/instável às vezes; retry no nível do build
+        # (até 5 tentativas, 120s entre elas) dá tempo de ele voltar.
+        run: |
+          n=0
+          until python dashboard.py; do
+            n=$((n+1)); [ $n -ge 5 ] && { echo "::error::CVM indisponível após 5 tentativas"; exit 1; }
+            echo "[retry] tentativa $n falhou (CVM provavelmente lenta) — aguardando 120s…"
+            sleep 120
+          done
       - name: Empacota versão offline (fontes embutidas)
         run: |
           mkdir -p _site
