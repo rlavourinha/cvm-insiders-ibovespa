@@ -196,6 +196,13 @@ def _extract_fields(text: str) -> dict:
     m = re.search(r"pre[çc]?o\s+(?:maximo|unitario maximo)[^\d]{0,40}r?\$?\s*([\d.,]+)", tl)
     if m:
         out["preco_max"] = _money(m.group(1))
+
+    # % do programa: se não foi declarado explicitamente ("representativas de
+    # X%"), calcula a partir de qtd/free float. Empresas como a CURY autorizam
+    # um nº absoluto e só citam o TETO legal de 10% da RCVM 77 — o % real do
+    # programa é qtd/circulação (ex.: 11.720.002/137.108.025 = 8,55%), não o teto.
+    if out["pct_float"] is None and out["qtd_autorizada"] and out["acoes_circulacao"]:
+        out["pct_float"] = round(out["qtd_autorizada"] / out["acoes_circulacao"] * 100, 2)
     return out
 
 
