@@ -47,6 +47,11 @@ for _d in (PDF_DIR, TXT_DIR):
 
 # número grande no formato BR (milhar com ponto) ou inteiro com 4+ dígitos
 _NUM = r"\d{1,3}(?:\.\d{3})+|\d{4,}"
+# quantidade: aceita também "5 milhões", "1,5 milhão", "500 mil", "10 milhões"
+# (a CVM mistura dígito+palavra-escala com o formato com pontos de milhar).
+_SCALE = r"(?:bilhoes|bilhao|milhoes|milhao|mil)"
+_QTY = r"\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?\s*" + _SCALE + r"|\d{4,}"
+_SCALE_MULT = {"mil": 1e3, "milhao": 1e6, "milhoes": 1e6, "bilhao": 1e9, "bilhoes": 1e9}
 
 
 def _norm(t: str) -> str:
@@ -56,6 +61,16 @@ def _norm(t: str) -> str:
 def _to_int(s) -> int | None:
     d = re.sub(r"\D", "", str(s))
     return int(d) if d else None
+
+
+def _to_qty(s) -> int | None:
+    """Converte '5 milhões'/'1,5 milhão'/'500 mil' ou '5.000.000' em inteiro."""
+    s = str(s).strip().lower()
+    m = re.match(r"([\d.,]+)\s*(" + _SCALE + r")", s)
+    if m:
+        base = float(m.group(1).replace(".", "").replace(",", "."))
+        return int(round(base * _SCALE_MULT[m.group(2)]))
+    return _to_int(s)
 
 
 def _protocolo(link: str) -> str:
@@ -137,10 +152,10 @@ def _extract_fields(text: str) -> dict:
                              "acoes_tesouraria", "prazo_meses", "data_aprovacao", "preco_max")}
 
     # quantidade máxima autorizada: "até X (...) ações" perto de recompr/adquir/aquisic/máximo
-    for m in re.finditer(r"(?:ate|de)\s+(" + _NUM + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?acoes", tl):
+    for m in re.finditer(r"(?:ate|de)\s+(" + _QTY + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?ac[oa]es", tl):
         ctx = tl[max(0, m.start() - 130):m.start()]
         if re.search(r"recompr|adquir|aquisic|maxim|poderao ser|serao adquirid", ctx):
-            out["qtd_autorizada"] = _to_int(m.group(1))
+            out["qtd_autorizada"] = _to_qty(m.group(1))
             break
 
     # alguns programas limitam por VALOR (R$), não por nº de ações (ex.: "até R$ 100.000.000")
@@ -197,13 +212,13 @@ def _extract_executed(text: str) -> dict:
         return out
 
     m = re.search(r"adquirid\w+\s+(?:na b3[^,]*,?\s*)?(?:a precos? de mercado,?\s*)?("
-                  + _NUM + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?ac[oa]es", tl)
+                  + _QTY + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?ac[oa]es", tl)
     if m:
-        out["qtd_executada"] = _to_int(m.group(1))
+        out["qtd_executada"] = _to_qty(m.group(1))
         tail = tl[m.end() - 1:m.end() + 90]
-        mp = re.search(r"e\s+(" + _NUM + r")\s*(?:\([^)]*\)\s*)?ac[oa]es\s*pn", tail)
+        mp = re.search(r"e\s+(" + _QTY + r")\s*(?:\([^)]*\)\s*)?ac[oa]es\s*pn", tail)
         if mp:
-            out["qtd_executada_pn"] = _to_int(mp.group(1))
+            out["qtd_executada_pn"] = _to_qty(mp.group(1))
         mc = re.search(r"equivalentes?\s+a\s+([\d,]+)\s*%\s+do\s+capital", tl)
         if mc:
             out["pct_capital_exec"] = float(mc.group(1).replace(".", "").replace(",", "."))
