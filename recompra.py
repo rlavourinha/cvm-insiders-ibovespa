@@ -151,10 +151,15 @@ def _extract_fields(text: str) -> dict:
     out = {k: None for k in ("qtd_autorizada", "valor_autorizado", "pct_float", "acoes_circulacao",
                              "acoes_tesouraria", "prazo_meses", "data_aprovacao", "preco_max")}
 
-    # quantidade máxima autorizada: "até X (...) ações" perto de recompr/adquir/aquisic/máximo
-    for m in re.finditer(r"(?:ate|de)\s+(" + _QTY + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?ac[oa]es", tl):
-        ctx = tl[max(0, m.start() - 130):m.start()]
-        if re.search(r"recompr|adquir|aquisic|maxim|poderao ser|serao adquirid", ctx):
+    # quantidade máxima autorizada: número seguido de "ações", em contexto de
+    # recompra. Aceita várias formas ("até X", "de X", "corresponde a X",
+    # "adquirir X", "máximo de X"); exclui "ações em circulação/tesouraria"
+    # (esses números são o free float / posição em tesouraria, não o limite).
+    for m in re.finditer(r"(" + _QTY + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?ac[oa]es", tl):
+        if re.search(r"\s+em\s+circula|\s+em\s+tesour", tl[m.end() - 1:m.end() + 24]):
+            continue
+        ctx = tl[max(0, m.start() - 120):m.start()]
+        if re.search(r"recompr|adquir|aquisic|maxim|poderao ser|corresponde a|equivale\w* a", ctx):
             out["qtd_autorizada"] = _to_qty(m.group(1))
             break
 
@@ -165,10 +170,16 @@ def _extract_fields(text: str) -> dict:
             out["valor_autorizado"] = _money(m.group(1))
             break
 
-    # % do free float
+    # % do free float — declarado explicitamente ("representativas de X%")
     m = re.search(r"representativ\w*\s+de\s+(?:ate\s+)?([\d.,]+)\s*%", tl)
     if m:
         out["pct_float"] = float(m.group(1).replace(".", "").replace(",", "."))
+    # candidato: "limite de X% das ações em circulação" (teto da RCVM 77). Só é
+    # usado lá no fim se o % real não puder ser calculado a partir do free float.
+    cap_pct = None
+    mc = re.search(r"limite\s+de\s+([\d.,]+)\s*%\s*(?:\([^)]*\)\s*)?(?:d[aeo]s?\s+)?ac[oa]es\s+em\s+circula", tl)
+    if mc:
+        cap_pct = float(mc.group(1).replace(".", "").replace(",", "."))
 
     # ações em circulação
     m = re.search(r"(" + _NUM + r")\s*(?:\([^)]*\)\s*)?acoes\s+em\s+circulacao", tl)
@@ -203,6 +214,8 @@ def _extract_fields(text: str) -> dict:
     # programa é qtd/circulação (ex.: 11.720.002/137.108.025 = 8,55%), não o teto.
     if out["pct_float"] is None and out["qtd_autorizada"] and out["acoes_circulacao"]:
         out["pct_float"] = round(out["qtd_autorizada"] / out["acoes_circulacao"] * 100, 2)
+    elif out["pct_float"] is None and cap_pct is not None:
+        out["pct_float"] = cap_pct  # programa autorizou o teto legal (sem free float p/ calcular)
     return out
 
 
