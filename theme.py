@@ -97,6 +97,13 @@ h1 em{font-style:italic;color:var(--gold)}
 .agg-row.compra{border-left-color:var(--buy)} .agg-row.venda{border-left-color:var(--sell)}
 .t-days{text-align:center;color:var(--muted)}
 
+/* tabela de recompra (aba Recompras) */
+.rec-head,.rec-row{display:grid;grid-template-columns:60px 84px 1fr 76px 52px 40px;gap:10px;align-items:center;padding:9px 20px;font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+.rec-head{color:var(--faint);font-size:10px;letter-spacing:.08em;text-transform:uppercase;position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding-top:12px;padding-bottom:12px}
+.rec-row{border-bottom:1px solid rgba(36,50,64,.5);transition:background .12s}
+.rec-row:hover{background:var(--panel2)}
+.t-unit{color:var(--faint);font-size:10px}
+
 /* tesouraria */
 .tes-list{padding:8px 0}
 .tes-item{padding:13px 20px;border-bottom:1px solid rgba(36,50,64,.5)} .tes-item:last-child{border-bottom:0}
@@ -135,6 +142,8 @@ footer{margin-top:26px;color:var(--faint);font-size:11.5px;font-family:'IBM Plex
   .tape-head span:nth-child(6),.tape-head span:nth-child(7),.tape-row .t-num:nth-child(6){display:none}
   .agg-head,.agg-row{grid-template-columns:54px 1fr 58px 78px 96px}
   .agg-head span:nth-child(5),.agg-head span:nth-child(6),.agg-row span:nth-child(5),.agg-row span:nth-child(6){display:none}
+  .rec-head,.rec-row{grid-template-columns:54px 80px 1fr 44px}
+  .rec-head span:nth-child(4),.rec-row span:nth-child(4),.rec-head span:nth-child(5),.rec-row span:nth-child(5){display:none}
 }
 """
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 import datetime as dt
 import pandas as pd
 
-import config, theme, report, history, monitor
+import config, theme, report, history, monitor, recompra
 
 _MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
@@ -37,7 +37,9 @@ def build(vlmo, ipe, hist_data, months, meta) -> str:
     mfrag = report.month_fragment(vlmo, ipe, meta)
     dfrag = report.digest_fragment(vlmo, ipe, meta)
     hfrag = history.history_fragment(hist_data, months, meta)
+    rfrag = recompra.fragment(recompra.load(), meta)
     n_mes = mfrag.get("n", 0)
+    n_rec = rfrag.get("n", 0)
     n_delta = (len(vlmo) if vlmo is not None else 0) + (len(ipe) if ipe is not None else 0)
     n_emis = len(hist_data)
     mode = meta.get("mode", "produção")
@@ -70,11 +72,13 @@ def build(vlmo, ipe, hist_data, months, meta) -> str:
     <button class="tab active" data-t="mes">Último mês<span class="n">{n_mes}</span></button>
     <button class="tab" data-t="fita">Fita do delta<span class="n">{n_delta}</span></button>
     <button class="tab" data-t="hist">Histórico 12 meses<span class="n">{n_emis}</span></button>
+    <button class="tab" data-t="recompra">Recompras<span class="n">{n_rec}</span></button>
   </nav>
 
   <section class="panel active" id="mes">{mfrag['body']}</section>
   <section class="panel" id="fita">{dfrag['body']}</section>
   <section class="panel" id="hist">{hfrag['body']}</section>
+  <section class="panel" id="recompra">{rfrag['body']}</section>
 
   <footer><span>cvm-insider-monitor · dashboard</span><span>{meta.get('gerado','—')}</span></footer>
 </div>

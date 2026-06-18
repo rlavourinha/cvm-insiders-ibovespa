@@ -184,6 +184,41 @@ def _extract_fields(text: str) -> dict:
     return out
 
 
+def _extract_executed(text: str) -> dict:
+    """Quantidade EFETIVAMENTE recomprada — disclosada nos comunicados de
+    encerramento/conclusão de programa ('tendo sido adquiridas X ações...').
+    Só dispara em linguagem realizada (passado), nunca em autorização ('até X')."""
+    tl = re.sub(r"\s+", " ", _norm(text)).lower()
+    out = {k: None for k in ("qtd_executada", "qtd_executada_pn", "preco_medio_exec",
+                             "valor_executado", "pct_capital_exec")}
+    realized = re.search(r"foram adquirid|sido adquirid|concluiu o programa|encerr\w+ d\w+ programa"
+                         r"|no ambito d\w+ programa[^.]{0,90}adquirid|adquiriu", tl)
+    if not realized:
+        return out
+
+    m = re.search(r"adquirid\w+\s+(?:na b3[^,]*,?\s*)?(?:a precos? de mercado,?\s*)?("
+                  + _NUM + r")\s*(?:\([^)]*\)\s*)?(?:de\s+)?ac[oa]es", tl)
+    if m:
+        out["qtd_executada"] = _to_int(m.group(1))
+        tail = tl[m.end() - 1:m.end() + 90]
+        mp = re.search(r"e\s+(" + _NUM + r")\s*(?:\([^)]*\)\s*)?ac[oa]es\s*pn", tail)
+        if mp:
+            out["qtd_executada_pn"] = _to_int(mp.group(1))
+        mc = re.search(r"equivalentes?\s+a\s+([\d,]+)\s*%\s+do\s+capital", tl)
+        if mc:
+            out["pct_capital_exec"] = float(mc.group(1).replace(".", "").replace(",", "."))
+    elif re.search(r"nao (?:foram|houve|adquiriu|realizou|ocorreu)[^.]{0,45}(adquir|negocia|aquisi|recompr)", tl):
+        out["qtd_executada"] = 0
+
+    m = re.search(r"preco medio (?:ponderado )?(?:de )?(?:aquisicao )?(?:de )?r?\$?\s*([\d.,]+)", tl)
+    if m:
+        out["preco_medio_exec"] = _money(m.group(1))
+    m = re.search(r"totalizando[^.]{0,35}r\$\s*([\d.,]+)", tl)
+    if m:
+        out["valor_executado"] = _money(m.group(1))
+    return out
+
+
 _MESES = {m: i + 1 for i, m in enumerate(
     ["janeiro", "fevereiro", "marco", "abril", "maio", "junho",
      "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"])}
@@ -249,11 +284,12 @@ def build_ledger(years=None, max_workers=8) -> pd.DataFrame:
         if tipo in ("debenture",):
             continue
         fields = _extract_fields(txt) if txt else {}
+        executed = _extract_executed(txt) if txt else {}
         rows.append(dict(
             ticker=r.get("ticker"), cd_cvm=r.get("cd_cvm"), ano=r.get("ano"),
             data_entrega=r.get("data_entrega"), data_ref=r.get("data_ref"),
             categoria=r.get("categoria"), assunto=r.get("assunto"),
-            tipo=tipo, link=link, chars=len(txt), **fields,
+            tipo=tipo, link=link, chars=len(txt), **fields, **executed,
         ))
     led = pd.DataFrame(rows)
     _write(led)
@@ -313,6 +349,35 @@ def fragment(led: pd.DataFrame, meta: dict) -> dict:
     total_acoes = ap["qtd_autorizada"].fillna(0).sum()
     n_emp = ap["ticker"].nunique()
 
+    # execução: quantidade efetivamente recomprada (dos comunicados de conclusão)
+    ex = pd.DataFrame()
+    if "qtd_executada" in led:
+        ex = led[led["qtd_executada"].notna() & (led["qtd_executada"] > 0)].copy()
+        ex["_ke"] = ex.apply(lambda r: f'{r["ticker"]}|{r.get("qtd_executada")}|{str(r["_d"])[:7]}', axis=1)
+        ex = ex.sort_values("_d").drop_duplicates("_ke", keep="last")
+    total_exec = ex["qtd_executada"].fillna(0).sum() if not ex.empty else 0
+
+    exec_items = []
+    for _, r in ex.sort_values("qtd_executada", ascending=False).iterrows():
+        pm, val = r.get("preco_medio_exec"), r.get("valor_executado")
+        if pd.isna(val) and pd.notna(pm):
+            val = r["qtd_executada"] * pm
+        head = (f'{report._qtd(r["qtd_executada"])} ON + {report._qtd(r["qtd_executada_pn"])} PN'
+                if pd.notna(r.get("qtd_executada_pn")) else f'{report._qtd(r["qtd_executada"])} ações')
+        parts = [head]
+        if pd.notna(pm):
+            parts.append(f'R$ {pm:,.2f} méd')
+        if pd.notna(val):
+            parts.append(report._brl(val))
+        link = r.get("link") or ""
+        doc = f' <a href="{link}" target="_blank" rel="noopener">doc ↗</a>' if link else ""
+        exec_items.append(
+            f'<div class="tes-item"><div class="tes-head"><span class="tkr">{r.get("ticker","—")}</span>'
+            f'<span class="tag gold">executado</span></div>'
+            f'<div class="tes-body">{" · ".join(parts)}</div>'
+            f'<div class="tes-meta">{report._short(str(r["_d"]),10)}{doc}</div></div>')
+    exec_items = exec_items or ['<div class="empty">Sem recompras concluídas com quantidade disponível.</div>']
+
     def _aut(r):
         if pd.notna(r.get("qtd_autorizada")):
             return f'{report._qtd(r["qtd_autorizada"])} <span class="t-unit">ações</span>'
@@ -350,13 +415,13 @@ def fragment(led: pd.DataFrame, meta: dict) -> dict:
   <div class="month-bar">
     <span>Histórico de programas de recompra — <b>{anos}</b></span>
     <span>Fonte: <b>comunicados IPE</b> (PDF) da CVM</span>
-    <span>Quantidade <b>autorizada</b> pelo programa (não a efetivamente executada)</span>
+    <span><b>Autorizado</b> = limite do programa · <b>Executado</b> = efetivamente recomprado (programas concluídos)</span>
   </div>
   <section class="kpis c4">
     <div class="kpi"><div class="lbl">Programas aprovados</div><div class="val">{n_prog}</div><div class="foot">no período</div></div>
     <div class="kpi"><div class="lbl">Ações autorizadas</div><div class="val">{report._qtd(total_acoes)}</div><div class="foot">soma dos limites</div></div>
+    <div class="kpi"><div class="lbl">Ações recompradas</div><div class="val gold">{report._qtd(total_exec)}</div><div class="foot">executado · prog. concluídos</div></div>
     <div class="kpi"><div class="lbl">Empresas com programa</div><div class="val">{n_emp}</div><div class="foot">do Ibovespa</div></div>
-    <div class="kpi"><div class="lbl">Encerr. / cancelam.</div><div class="val">{len(enc)}</div><div class="foot">eventos</div></div>
   </section>
   <div class="grid">
     <section class="card">
@@ -366,6 +431,8 @@ def fragment(led: pd.DataFrame, meta: dict) -> dict:
       <div class="tape">{''.join(rows)}</div>
     </section>
     <div class="right">
+      <section class="card"><div class="card-h"><h2>Recompras concluídas</h2><span class="meta">executado · {len(ex)}</span></div>
+        <div class="tes-list">{''.join(exec_items)}</div></section>
       <section class="card"><div class="card-h"><h2>Encerramentos &amp; cancelamentos</h2><span class="meta">{len(enc)}</span></div>
         <div class="tes-list">{''.join(enc_items)}</div></section>
     </div>
